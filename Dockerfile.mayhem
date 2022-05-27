@@ -1,0 +1,15 @@
+FROM --platform=linux/amd64 ubuntu:22.04
+
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libfreetype6-dev
+
+COPY . /repo
+WORKDIR /repo
+RUN ./configure --without-freetype
+RUN make -j8
+RUN make install
+
+WORKDIR /repo/tools/agar-disasm
+RUN ./configure
+RUN make
+ENV LD_LIBRARY_PATH=/repo/core
