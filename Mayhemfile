@@ -1,6 +1,5 @@
-project: rnshah9/libagar
+project: libagar
 target: agar-disasm
-tests: null
 
 cmds:
   - cmd: /repo/tools/agar-disasm/agar-disasm @@
