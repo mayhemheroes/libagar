@@ -2,4 +2,4 @@ project: libagar
 target: agar-disasm
 
 cmds:
-  - cmd: /repo/tools/agar-disasm/agar-disasm @@
+  - cmd: /install/bin/agar-disasm @@
