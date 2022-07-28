@@ -21,5 +21,4 @@ ENV LD_LIBRARY_PATH=/repo/core
 
 FROM ubuntu:22.04 as package
 COPY --from=builder /install /install
-COPY --from=builder /repo/tools/agar-disasm/agar-disasm /
 ENV LD_LIBRARY_PATH=/install/lib
