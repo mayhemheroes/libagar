@@ -1,0 +1,6 @@
+project: libagar
+target: ag-length-utf8
+
+cmds:
+  - cmd: /fuzz_ag_length_utf8
+    libfuzzer: true

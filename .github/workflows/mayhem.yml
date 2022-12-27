@@ -59,7 +59,8 @@ jobs:
       fail-fast: false
       matrix:
         mayhemfile:
-          - mayhem/Mayhemfile
+          - mayhem/Mayhemfile_ag_length_utf8
+          - mayhem/Mayhemfile_agar-disasm
 
     steps:
       - uses: actions/checkout@v3
