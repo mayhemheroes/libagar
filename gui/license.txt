@@ -2,6 +2,17 @@
 Agar GUI Library
 ----------------
 Copyright (c) 2001-2023 Julien Nadeau Carriere <vedge@csoft.net>
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Parts from contributors
+-----------------------
 Copyright (c) 2019-2020 Charles A. Daniels <cdaniels.net>
 Copyright (c) 1997-2017 Sam Lantinga <slouken@libsdl.org>
 Copyright (c) 2010 Michael J. Wood
@@ -29,8 +40,8 @@ Permission is granted to anyone to use this software for any purpose, including 
 2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 
-Parts from SDL2 (keysym tables)
--------------------------------
+Parts from SDL2 (keysyms)
+-------------------------
 Copyright (C) 2003-2006,2008 Jamey Sharp, Josh Triplett
 Copyright (C) 2009 Red Hat, Inc.
 Copyright 1990-1992,1999,2000,2004,2009,2010 Oracle and/or its affiliates.
@@ -41,6 +52,16 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice (including the next paragraph) shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Parts from Sparse1.4
+--------------------
+Copyright (C) 1985-2003 Kenneth S. Kundert
+
+Sparse1.4 is distributed as open-source software under the Berkeley license model. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the original copyright notice, this list of conditions and the following disclaimer.  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.  Neither the name of the copyright holder nor the names of the authors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+This software is provided by the copyright holders and contributors ``as is'' and any express or implied warranties, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose are disclaimed. In no event shall the copyright owner or contributors be liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
 
 Parts from Gary S. Brown (crc32)
 --------------------------------
@@ -72,6 +93,12 @@ Redistribution and use in source and binary forms, with or without modification,
 3. Neither the name of the University nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Agar Ideograms Fonts
+--------------------
+Copyright (c) 2023 Julien Nadeau Carriere (vedge@csoft.net).
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is copied below, and is also available with a FAQ at: http://scripts.sil.org/OFL
 
 Agar Minimal Fonts
 ------------------
@@ -111,32 +138,6 @@ The Font Software may be sold as part of a larger software package but no copy o
 THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL TAVMJONG BAH BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE.
 Except as contained in this notice, the name of Tavmjong Bah shall not be used in advertising or otherwise to promote the sale, use or other dealings in this Font Software without prior written authorization from Tavmjong Bah. For further information, contact: tavmjong @ free . fr.
 
-TeX Gyre DJV Math
------------------
-Fonts are (c) Bitstream (see above). DejaVu changes are in public domain.
-Math extensions done by B. Jackowski, P. Strzelczyk and P. Pianowski (on behalf of TeX users groups) are in public domain.
-Letters imported from Euler Fraktur from AMSfonts are (c) American Mathematical Society (see below).
-
-AMSFonts (v. 2.2) copyright
----------------------------
-The PostScript Type 1 implementation of the AMSFonts produced by and previously distributed by Blue Sky Research and Y&Y, Inc. are now freely available for general use. This has been accomplished through the cooperation of a consortium of scientific publishers with Blue Sky Research and Y&Y. Members of this consortium include:
-Elsevier Science IBM Corporation Society for Industrial and Applied Mathematics (SIAM) Springer-Verlag American Mathematical Society (AMS)
-In order to assure the authenticity of these fonts, copyright will be held by the American Mathematical Society. This is not meant to restrict in any way the legitimate use of the fonts, such as (but not limited to) electronic distribution of documents containing these fonts, inclusion of these fonts into other public domain or commercial font collections or computer applications, use of the outline data to create derivative fonts and/or faces, etc. However, the AMS does require that the AMS copyright notice be removed from any derivative versions of the fonts which have been altered in any way. In addition, to ensure the fidelity of TeX documents using Computer Modern fonts, Professor Donald Knuth, creator of the Computer Modern faces, has requested that any alterations which yield different font metrics be given a different name.
-
-AMSFonts (v. 2.2) copyright
----------------------------
-Copyright (C) Authors of original metafont fonts:
-Donald Ervin Knuth (cm, concrete fonts)
-1995, 1996, 1997 J"org Knappen, 1990, 1992 Norbert Schwarz (ec fonts)
-1992-2006 A.Khodulev, O.Lapko, A.Berdnikov, V.Volovich (lh fonts)
-1997-2005 Claudio Beccari (cb greek fonts)
-2002 FUKUI Rei (tipa fonts)
-2003-2005 Han The Thanh (Vietnamese fonts)
-1996-2005 Walter Schmidt (cmbright fonts)
-
-Copyright (C) 2003-2009, Andrey V. Panov (panov@canopus.iacp.dvo.ru), with Reserved Font Family Name "Computer Modern Unicode fonts".
-This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is copied below, and is also available with a FAQ at: http://scripts.sil.org/OFL
-
 Bitstream Charter Fonts
 -----------------------
 This is a copy of the Charter fonts which Bitstream contributed to the X consortium. This is the original notice included with the fonts: 
@@ -147,13 +148,19 @@ You are hereby granted permission under all Bitstream propriety rights to use, c
 
 League Gothic Fonts
 -------------------
-Copyright (c) 2010, Caroline Hadilaksono & Micah Rich <caroline@hadilaksono, micah@micahrich.com>, with Reserved Font Name: "League Gothic".
+Copyright (c) 2020, Caleb Maclennan <caleb@alerque>
+
+Copyright (c) 2010-2012, Micah Rich <micah@micahrich.com>, with Reserved Font Name: "League Gothic".
+
+Copyright (c) 2010, Caroline Hadilaksono <caroline@hadilaksono>
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is copied below, and is also available with a FAQ at: http://scripts.sil.org/OFL
 
 League Spartan Fonts
 --------------------
-Copyright (c) September 22 2014, Micah Rich micah@micahrich.com, with Reserved Font Name: "League Spartan".
+Copyright (c) 2016-2020, Tyler Finck <hi@tylerfinck.com>
+
+Copyright (c) 2014, Micah Rich <micah@micahrich.com>, with Reserved Font Name: "League Spartan".
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is copied below, and is also available with a FAQ at: http://scripts.sil.org/OFL
 
@@ -163,14 +170,6 @@ Copyright (c) 2023 Julien Nadeau Carriere (vedge@csoft.net).
 Copyright (c) 2015 Quote-Unquote Apps (http://quoteunquoteapps.com).
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is copied below, and is also available with a FAQ at: http://scripts.sil.org/OFL
-
-Source Han Fonts
-----------------
-Copyright 2014-2019 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'. Source is a trademark of Adobe in the United States and/or other countries.
-
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
-
-This license is copied below, and is also available with a FAQ at: http://scripts.sil.org/OFL
 
 Unialgue Fonts
 --------------

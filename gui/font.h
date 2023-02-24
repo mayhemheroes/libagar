@@ -53,11 +53,11 @@ typedef struct ag_font_spec {
 
 /* Scaling and metric adjustments to a font. */
 typedef struct ag_font_adjustment {
-	const char *face;               /* Font family */
-	Uint flags;			/* AG_FONT_BOLD = Regular is bold */
-	                                /* AG_FONT_ITALIC = Regular is italic */
-	float size_factor;              /* Scaling factor */
-	int ascent_offset[6];           /* Ascent tweak (size range specific) */
+	const char *face;       /* Font family */
+	float size_factor;      /* Scaling factor */
+	int ascent_offset[6];   /* Ascent tweak (size range specific) */
+	Uint regFlags;          /* Which styles to consider Regular or Normal */
+	Uint stateFlags;        /* Set these stateFlags when font is loaded */
 } AG_FontAdjustment;
 
 /* Map alternate names to font names. */
@@ -120,7 +120,7 @@ typedef struct ag_font {
 #define AG_FONT_BLACK          0x0040   /* Wt#900 - Black ("Heavy") */
 #define AG_FONT_OBLIQUE        0x0080   /* Style - Oblique */
 #define AG_FONT_ITALIC         0x0100   /* Style - Italic */
-#define AG_FONT_UPRIGHT_ITALIC 0x0200   /* Style - Upright Italic */
+                            /* 0x0200      (Unused) */
 #define AG_FONT_ULTRACONDENSED 0x0400   /* Wd(50%) - Ultra Condensed */
 #define AG_FONT_CONDENSED      0x0800   /* Wd(75%) - Condensed */
 #define AG_FONT_SEMICONDENSED  0x1000   /* Wd(87.5%) - Semi Condensed ("Demi Condensed") */
@@ -132,24 +132,26 @@ typedef struct ag_font {
                          AG_FONT_SEMIBOLD | AG_FONT_BOLD | AG_FONT_EXTRABOLD | \
                          AG_FONT_BLACK)
 
-#define AG_FONT_STYLES (AG_FONT_OBLIQUE | AG_FONT_ITALIC | \
-                        AG_FONT_UPRIGHT_ITALIC)
+#define AG_FONT_STYLES (AG_FONT_OBLIQUE | AG_FONT_ITALIC)
 
 #define AG_FONT_WD_VARIANTS (AG_FONT_ULTRACONDENSED | AG_FONT_CONDENSED | \
                              AG_FONT_SEMICONDENSED | AG_FONT_SEMIEXPANDED | \
                              AG_FONT_EXPANDED | AG_FONT_ULTRAEXPANDED)
-	Uint nFamilyStyles;
-	Uint *familyStyles;             /* Styles available in this font family */
+
+	Uint           nFamilyStyles;
+	Uint *_Nullable familyStyles;   /* Styles available in this font family */
+
 	Uint stateFlags;
 #define AG_FONT_FONTCONFIGED      0x01  /* Discovered via fontconfig */
 #define AG_FONT_FAMILY_FLAGS      0x02  /* Family flags are specified */
+
 	int height;                     /* Height (px) */
 	int ascent;                     /* Ascent (px) */
 	int descent;                    /* Descent (px) */
 	int lineskip;                   /* Multiline y-increment (px) */
 	int underlinePos;               /* Underline position */
 	int underlineThk;               /* Underline thickness */
-	Uint nRefs;                     /* Global reference count */
+	Uint32 tAccess;                 /* Access time (debug mode only) */
 	AG_TAILQ_ENTRY(ag_font) fonts;  /* Entry in global fonts list */
 } AG_Font;
 
@@ -201,10 +203,14 @@ extern AG_StaticFont *_Nonnull agBuiltinFonts[];
 
 AG_Font	*_Nullable AG_FetchFont(const char *_Nullable, float, Uint)
                                _Warn_Unused_Result;
-void               AG_UnusedFont(AG_Font *_Nonnull);
 
 int     AG_FontGetFamilyStyles(AG_Font *_Nonnull);
 AG_Size AG_FontGetStyleName(char *_Nonnull, AG_Size, Uint);
+Uint    AG_FontGetStyleByName(const char *_Nonnull);
+
+#ifdef AG_LEGACY
+#define AG_UnusedFont(font) /* unused */
+#endif
 __END_DECLS
 
 #include <agar/gui/close.h>

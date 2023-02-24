@@ -480,10 +480,7 @@ FreeItem(AG_Tlist *_Nonnull tl, AG_TlistItem *_Nonnull it)
 	}
 	if (it->color)
 		free(it->color);
-#if 0
-	if (it->font)
-		AG_UnusedFont(it->font);
-#endif
+
 	free(it);
 }
 
@@ -1321,10 +1318,7 @@ AG_TlistSetFont(AG_Tlist *tl, AG_TlistItem *it, const char *face, float scale,
 
 	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
 	AG_ObjectLock(tl);
-#if 0
-	if (it->font != NULL)
-		AG_UnusedFont(it->font);
-#endif
+
 	font = WIDGET(tl)->font;
 
 	if (face == NULL) {
@@ -1580,6 +1574,8 @@ MouseButtonDown(void *obj, AG_MouseButton button, int x, int y)
 		}
 		AG_Redraw(tl);
 		break;
+	default:
+		break;
 	}
 
 	if (x > WIDTH(tl) - WIDTH(tl->sbar))
@@ -1627,6 +1623,8 @@ MouseButtonDown(void *obj, AG_MouseButton button, int x, int y)
 		SelectItem(tl, ti);
 
 		break;
+	default:
+		break;
 	}
 
 	switch (button) {
@@ -1666,6 +1664,8 @@ MouseButtonDown(void *obj, AG_MouseButton button, int x, int y)
 					PopupMenu(tl, tp, x,y);
 			}
 		}
+	default:
+		break;
 	}
 }
 
@@ -1750,6 +1750,8 @@ KeyDown(void *obj, AG_KeySym ks, AG_KeyMod kmod, AG_Char ch)
 			AG_PostEvent(tl, "tlist-return", "%p", ti);
 		}
 		break;
+	default:
+		break;
 	}
 	tl->lastKeyDown = ks;
 }
@@ -1767,6 +1769,8 @@ KeyUp(void *obj, AG_KeySym ks, AG_KeyMod kmod, AG_Char ch)
 		if (ks == tl->lastKeyDown) {
 			AG_DelTimer(tl, &tl->moveTo);
 		}
+		break;
+	default:
 		break;
 	}
 }
@@ -2120,6 +2124,29 @@ AG_TlistScrollToEnd(AG_Tlist *tl)
 	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
 	tl->rOffs = MAX(0, tl->nItems - tl->nVisible);
 	AG_Redraw(tl);
+}
+
+/* Scroll to the first selected item (no-op if no selection). */
+void
+AG_TlistScrollToSelection(AG_Tlist *tl)
+{
+	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
+	AG_TlistItem *it;
+	int m = 0;
+
+	AG_ObjectLock(tl);
+
+	TAILQ_FOREACH(it, &tl->items, items) {
+		if (it->selected) {
+			tl->rOffs = m - (tl->nVisible << 1);
+			break;
+		}
+		m++;
+	}
+	if (it != NULL)
+		AG_Redraw(tl);
+
+	AG_ObjectUnlock(tl);
 }
 
 static int

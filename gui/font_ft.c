@@ -251,7 +251,7 @@ Open(void *_Nonnull obj, const char *_Nonnull path)
 		}
 	  	font->descent = 0;
 	  	font->height = face->available_sizes[fixedSize].height;
-	  	font->lineskip = font->height;
+	  	font->lineskip = font->height + 4; /* XXX TODO */
 	  	font->underlinePos = FT_FLOOR(face->underline_position);
 	  	font->underlineThk = FT_FLOOR(face->underline_thickness);
 	}
@@ -535,14 +535,13 @@ Render(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 	const AG_TextState *ts = AG_TEXT_STATE_CUR();
 	AG_Font *fontCur = fontOrig;
 	AG_FontFt *fontFtCur;
-	AG_GlyphFt *G;
 	const AG_Char *ch;
 	Uint8 *src, *dst;
 	AG_Color cBg = *cBgOrig;
 	AG_Color cFg = *cFgOrig;
 	FT_UInt indexPrev = 0;
 	const int BytesPerPixel = S->format.BytesPerPixel;
-	const int lineSkip = fontOrig->lineskip;
+	const int lineskip = fontOrig->lineskip;
 	int xStart, yStart, line, x,y, w;
 	int ascentCur;
 
@@ -557,7 +556,7 @@ Render(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 	     ch++) {
 		switch (*ch) {
 		case '\n':
-			yStart += lineSkip;
+			yStart += lineskip;
 			xStart = JustifyOffset(ts, Tm->w, Tm->wLines[++line]);
 			continue;
 		case '\r':
@@ -652,6 +651,7 @@ Render(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 			continue;
 		}
 		if (fontCur->spec.type == AG_FONT_FREETYPE) {
+			AG_GlyphFt *G;
 			int yOffset;
 
 			fontFtCur = AGFONTFT(fontCur);
@@ -739,6 +739,7 @@ Render(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 			}
 
 			xStart += G->advance;
+			indexPrev = G->index;
 
 		} else if (fontCur->spec.type == AG_FONT_BITMAP) {
 			AG_FontBf *fontBfCur = AGFONTBF(fontCur);
@@ -751,7 +752,6 @@ Render(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 				    (char)*ch, *ch);
 #endif
 				xStart += fontBfCur->wdRef;
-				indexPrev = G->index;
 				continue;
 			}
 			(void)cBg;
@@ -764,7 +764,6 @@ Render(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 
 			xStart += Gbf->rs.w + fontBfCur->advance;
 		}
-		indexPrev = G->index;
 	}
 }
 
@@ -907,8 +906,8 @@ Size(const AG_Font *_Nonnull font, const AG_Char *_Nonnull ucs,
 		}
 		Tm->nLines++;
 	}
-	Tm->w = (xMax - xMin);
-	Tm->h = (yMax - yMin);
+	Tm->w = (xMax - xMin) + 1;
+	Tm->h = (yMax - yMin) + 1;
 }
 
 static void

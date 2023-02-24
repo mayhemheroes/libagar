@@ -46,21 +46,6 @@
 extern int agFontconfigInited;		/* text.c */
 #endif
 
-/*
- * Skip common fonts that do not usually include the ASCII range needed for
- * our Preview. TODO: Preview in different languages.
- */
-const char *agFontsToIgnore[] = {
-	"ClearlyU Alternate Glyphs",
-	"ClearlyU PUA",
-	"Cursor",
-	"DejaVu Math TeX Gyre",
-	"MUTT ClearlyU Alternate Glyphs Wide",
-	"MUTT ClearlyU PUA",
-	"Twitter Color Emoji",
-	NULL
-};
-
 AG_FontSelector *
 AG_FontSelectorNew(void *parent, Uint flags)
 {
@@ -141,8 +126,6 @@ UpdateStyles(AG_FontSelector *_Nonnull fs, AG_Font *_Nonnull font)
 		for (fss = &agFontStyleSort[0]; fss->key != -1; fss++) {
 			if (famStyle == (Uint)fss->flags) {
 				ti->v = (int)fss->key;          /* Sort key */
-				Debug(font, "Sort key = %d (fl=0x%x)\n", ti->v,
-				    fss->flags);
 				break;
 			}
 		}
@@ -173,16 +156,19 @@ UpdateStyles(AG_FontSelector *_Nonnull fs, AG_Font *_Nonnull font)
 static void
 UpdateSizes(AG_FontSelector *_Nonnull fs, AG_Font *_Nullable font)
 {
+	AG_Tlist *tl = fs->tlSizes;
 	const int stdSizes[] = { 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
 	                         22,24,26,28,32,48,64 };
 	const int nStdSizes = sizeof(stdSizes) / sizeof(stdSizes[0]);
 	int i;
 
+	AG_TlistClear(tl);
+
 	/* XXX TODO */
 	for (i = 0; i < nStdSizes; i++) {
 		AG_TlistItem *ti;
 
-		ti = AG_TlistAdd(fs->tlSizes, NULL, "%d", stdSizes[i]);
+		ti = AG_TlistAdd(tl, NULL, "%d", stdSizes[i]);
 		if (font != NULL && stdSizes[i] == font->spec.size)
 			ti->selected++;
 	}
@@ -229,7 +215,7 @@ UpdatePreview(AG_FontSelector *_Nonnull fs, AG_Font *_Nullable fontNew)
 		    "Descent: " AGSI_BOLD "%d" AGSI_RST " px\n"
 		    "Line Skip: " AGSI_BOLD "%d" AGSI_RST " px\n\n"
 		    "Adjustment: #%d\n"
-		    "Scaling Adj: " AGSI_BOLD "%+.01f" AGSI_RST "\n"
+		    "Scaling Adj: " AGSI_BOLD "%.01f" AGSI_RST "\n"
 		    "Ascent Adj: " AGSI_BOLD "%+d" AGSI_RST "\n",
 		    pts, font->ascent, font->descent, font->lineskip, adjRange,
 		    fa->size_factor, fa->ascent_offset[adjRange]);
@@ -261,12 +247,9 @@ RenderPreview(AG_FontSelector *_Nonnull fs)
 	if (*pFont != NULL) {
 		AG_TextFont(*pFont);
 	}
-	if (fs->flags & AG_FONTSELECTOR_ALT_PHRASE) {
-		S = AG_TextRender("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789\n"
-		                  "abcdefghijklmnopqrstuvwxyz 0123456789");
-	} else {
-		S = AG_TextRender("The Quick Brown Fox Jumps Over The Lazy Dog");
-	}
+
+	S = fs->previewFn(fs, *pFont);
+
 	if (fs->sPreview == -1) {
 		fs->sPreview = AG_WidgetMapSurface(fs, S);
 	} else {
@@ -289,7 +272,7 @@ OnShow(AG_Event *_Nonnull event)
 	AG_ConfigPath *fpath;
 	AG_Tlist *tlFaces = fs->tlFaces;
 	AG_TlistCompareFn cmpFnOrig;
-	int i;
+	int selFound = 0;
 	
 	Vfont = AG_GetVariable(fs, "font", (void *)&pFont);
 	font = *pFont;
@@ -323,9 +306,10 @@ OnShow(AG_Event *_Nonnull event)
 		os = FcObjectSetBuild(FC_FAMILY, (char *)0);
 		fset = FcFontList(NULL, pat, os);
 		if (fset != NULL) {
+			int i;
+
 			for (i = 0; i < fset->nfont; i++) {
 				FcPattern *fcfont = fset->fonts[i];
-				const char **fignore;
 				const char *fext;
 				FcChar8 *pFam;
 				char *fam;
@@ -336,23 +320,23 @@ OnShow(AG_Event *_Nonnull event)
 				}
 				fam = (char *)pFam;
 				fext = strrchr(fam, '.');
-				if (fext && strcmp(fext, ".pcf") == 0) {
-					continue;
-				}
-				for (fignore = &agFontsToIgnore[0];
-				    *fignore != NULL;
-				     fignore++) {
-					if (strcmp(*fignore, fam) == 0)
-						break;
-				}
-				if (*fignore != NULL)
+
+				/*
+				 * Skip .pcf files and fonts which usually
+				 * contains no Unicode-addressable glyphs.
+				 */
+				if ((fext && strcmp(fext, ".pcf") == 0) ||
+				    strcmp(fam, "Cursor") == 0 ||
+				    strcmp(fam, "DejaVu Math TeX Gyre") == 0)
 					continue;
 
 				ti = AG_TlistAddS(tlFaces, NULL, fam);
 
 				if (font != NULL &&
-				    strcmp(fam, OBJECT(font)->name) == 0)
+				    strcmp(fam, OBJECT(font)->name) == 0) {
 					ti->selected++;
+					selFound = 1;
+				}
 			}
 			FcFontSetDestroy(fset);
 		}
@@ -408,10 +392,21 @@ OnShow(AG_Event *_Nonnull event)
 			ti = AG_TlistAddS(tlFaces, NULL, file);
 			AG_TlistSetFont(tlFaces, ti, "monoalgue", 1.0f, 0);
 
-			if (font && strcmp(file, OBJECT(font)->name) == 0)
+			if (font && strcmp(file, OBJECT(font)->name) == 0) {
 				ti->selected++;
+				selFound = 1;
+			}
 		}
 		AG_CloseDir(dir);
+	}
+
+	if (!selFound) {
+		if (strcmp(agDefaultFont->name, "_agFontAlgue") == 0) {
+			AG_TlistSelectText(tlFaces, "algue.ttf");
+		} else {
+			AG_TlistSelectText(tlFaces, agDefaultFont->name);
+		}
+		AG_TlistScrollToSelection(tlFaces);
 	}
 
 	cmpFnOrig = AG_TlistSetCompareFn(tlFaces, AG_TlistCompareStrings);
@@ -511,10 +506,330 @@ EditBgFgColor(AG_Event *_Nonnull event)
 	AG_ButtonToggle(btnOther);
 }
 
+/*
+ * Default Preview function (previewFn).
+ */
+static AG_Surface *
+PreviewDefault(AG_FontSelector *fs, AG_Font *font)
+{
+	const int altPhrase = (fs->flags & AG_FONTSELECTOR_ALT_PHRASE);
+	AG_Surface *S;
+
+	if (AG_Strcasestr(font->name, "Arabic")) {
+		if (altPhrase) {
+			/*
+			 * Al-arabiyyah (Arabic).
+			 */
+			S = AG_TextRenderRTL(
+			    "\xD8\xA7" "\xd9\x8E" "\xd9\x84" "\xd9\x92"
+			    "\xD8\xB9" "\xd9\x8E" "\xd8\xB1" "\xd9\x8E"
+			    "\xD8\xA8" "\xd9\x90" "\xd9\x8A" "\xd9\x8E"
+			    "\xD9\x91" "\xd8\xA9" "\xd9\x8F");
+		} else {
+			/*
+			 * As-aalaam alaikum ("Peace be upon you")
+			 */
+			S = AG_TextRenderRTL(
+			    "\xD8\xA7" "\xD9\x84" "\xD8\xB3" "\xD9\x84"
+			    "\xD8\xA7" " "
+			    "\xD9\x85" "\xD8\xB9" "\xD9\x84" "\xD9\x8A"
+			    "\xD9\x83" "\xD9\x85");
+		}
+	} else if (AG_Strcasestr(font->name, "Armenian")) {
+		if (altPhrase) {
+			/*
+			 * Kpareik' indz het?
+			 * ("Would you like to dance with me?")
+			 */
+			S = AG_TextRender(
+			    "\xD4\xBF" "\xd5\xBA" "\xd5\xA1" "\xD6\x80"
+			    "\xD5\xA5" "\xD5\xAB" "\xd5\x9E" "\xd6\x84" " "
+			    "\xD5\xAB" "\xd5\xB6" "\xd5\xB1" " "
+			    "\xD5\xB0" "\xd5\xA5" "\xd5\xBF" AGSI_ALGUE " ?");
+		} else {
+			/*
+			 * Bari galu'st! ("Welcome!")
+			 */
+			S = AG_TextRender(
+			    "\xD4\xB2" "\xD5\xA1" "\xD6\x80" "\xD5\xAB" " "
+			    "\xD5\xA3" "\xD5\xA1" "\xD5\xAC" "\xD5\xB8"
+			    "\xD6\x82" "\xD5\xBD" "\xD5\xBF" AGSI_ALGUE " !");
+		}
+	} else if (AG_Strcasestr(font->name, "CJK SC") ||
+	           AG_Strcasestr(font->name, "Sans SC") ||
+	           AG_Strcasestr(font->name, "Serif SC")) {
+		if (altPhrase) {
+			/*
+			 * Zhongwen (Chinese)
+			 */
+			S = AG_TextRender("\xE4\xB8" "\xAD\xE6" "\x96\x87");
+		} else {
+			/*
+			 * Youqing yinshuibao, wuqing shifanji
+			 * ("With love water is enough; without love, food
+			 * doesn't satisfy.")
+			 */
+			S = AG_TextRender(
+			    "\xE6\x9C\x89" "\xE6\x83\x85" "\xE9\xA5\xAE"
+			    "\xE6\xB0\xB4" "\xE9\xA5\xB1" "\xEf\xBC\x8C"
+			    "\xE6\x97\xA0" "\xE6\x83\x85" "\xE9\xA3\x9F"
+			    "\xE9\xA5\xAD" "\xE9\xA5\xA5" "\xE3\x80\x82");
+		}
+	} else if (AG_Strcasestr(font->name, "Estrangelo") ||
+	           AG_Strcasestr(font->name, "East Syriac")) {
+		if (altPhrase) {
+			/*
+			 * Lessana Suryaya (Syriac)
+			 */
+			S = AG_TextRenderRTL(
+			    "\xDC\xA0" "\xDC\xAB" "\xDC\xA2" "\xDC\x90" " "
+			    "\xDC\xA3" "\xDC\x98" "\xDC\xAA" "\xDC\x9D"
+			    "\xDC\x9D" "\xDC\x90");
+		} else {
+			/*
+			 * Tubayhon l-aylen da-dken b-lebbhon d-hennon nehzon l-alaha 
+			 * ("Blessed are the pure in heart for they shall see God").
+			 */
+			S = AG_TextRenderRTL(
+			    "\xDC\x9B" "\xDC\x98" "\xDC\xBC" "\xDC\x92" "\xDC\xB2"
+			    "\xDC\x9D" "\xDC\x97" "\xDC\x98" "\xDC\xBF" "\xDC\xA2" " "
+			    "\xDC\xA0" "\xDC\x90" "\xDC\xB2" "\xDC\x9D"
+			    "\xDC\xA0" "\xDC\xB9" "\xDC\x9D" "\xDC\xA2" " "
+			    "\xDC\x95" "\xDC\xB2" "\xDC\x95" "\xDD\x82"
+			    "\xDC\x9F" "\xDC\xB9" "\xDC\x9D" "\xDC\xA2" " "
+			    "\xDC\x92" "\xDC\xA0" "\xDC\xB8" "\xDC\x92"
+			    "\xCC\x87" "\xDC\x97" "\xDC\x98" "\xDC\xBF"
+			    "\xDC\xA2" "\xDC\x84" " "
+			    "\xDC\x95" "\xDC\x97" "\xDC\xB8" "\xDC\xA2" "\xDD\x82"
+			    "\xDC\x98" "\xDC\xBF" "\xDC\xA2" " "
+			    "\xDC\xA2" "\xDC\xB8" "\xDC\x9A" "\xDC\x99" "\xDC\x98"
+			    "\xDC\xBF" "\xDC\xA2" " "
+			    "\xDC\xA0" "\xDC\x90" "\xDC\xB2" "\xDC\xA0" "\xDC\xB5"
+			    "\xDC\x97" "\xDC\xB5" "\xDC\x90" "\xDC\x82");
+		}
+
+	} else if (AG_Strcasestr(font->name, "Ethiopic")) {
+		if (altPhrase) {
+			/*
+			 * Amarenna (Amharic)
+			 */
+			S = AG_TextRender(
+			    "\xE1\x8A\xA0" "\xE1\x88\x9B" "\xE1\x88\xAD"
+			    "\xE1\x8A\x9B");
+		} else {
+			/*
+			 * Siletewaweqin dess bilognal
+			 * ("Pleased to meet you")
+			 */
+			S = AG_TextRender(
+			    "\xE1\x88\xB5" "\xE1\x88\x88" "\xE1\x89\xB0"
+			    "\xE1\x8B\x8B" "\xE1\x8B\x88" "\xE1\x89\x85"
+			    "\xE1\x8A\x95" " "
+			    "\xE1\x8B\xB0" "\xE1\x88\xB5" " "
+			    "\xE1\x89\xA5" "\xE1\x88\x8E" "\xE1\x8A\x9B"
+			    "\xE1\x88\x8D");
+		}
+
+	} else if (AG_Strcasestr(font->name, "Georgian")) {
+		if (altPhrase) {
+			/*
+			 * Kartuli ena (Georgian)
+			 */
+			S = AG_TextRender(
+			    "\xE1\x83\xA5" "\xE1\x83\x90" "\xE1\x83\xA0"
+			    "\xE1\x83\x97" "\xE1\x83\xA3" "\xE1\x83\x9A"
+			    "\xE1\x83\x98" " "
+			    "\xE1\x83\x94" "\xE1\x83\x9C" "\xE1\x83\x90");
+		} else {
+			/*
+			 * ketil mgzavrobas gisurvebta!
+			 * ("Have a good journey!")
+			 */
+			S = AG_TextRender(
+			    "\xE1\x83\x99" "\xE1\x83\x94" "\xE1\x83\x97"
+			    "\xE1\x83\x98" "\xE1\x83\x9A" " "
+			    "\xE1\x83\x9B" "\xE1\x83\x92" "\xE1\x83\x96"
+			    "\xE1\x83\x90" "\xE1\x83\x95" "\xE1\x83\xA0"
+			    "\xE1\x83\x9D" "\xE1\x83\x91" "\xE1\x83\x90"
+			    "\xE1\x83\xA1" " "
+			    "\xE1\x83\x92" "\xE1\x83\x98" "\xE1\x83\xA1"
+			    "\xE1\x83\xA3" "\xE1\x83\xA0" "\xE1\x83\x95"
+			    "\xE1\x83\x94" "\xE1\x83\x91"
+			    "\xE1\x83\x97" AGSI_ALGUE " !");
+		}
+	} else if (AG_Strcasestr(font->name, "Hebrew")) {
+		if (altPhrase) {
+			/*
+			 * Ivrit (Hebrew)
+			 */
+			S = AG_TextRenderRTL(
+			    "\xD7\xA2" "\xD6\xB4" "\xD7\x91" "\xd6\xB0"
+			    "\xD7\xA8" "\xD6\xB4" "\xD7\x99" "\xD7\xAA");
+		} else {
+			/*
+			 * Hachaim shelanu tutim
+			 * ("Our life is strawberries").
+			 */
+			S = AG_TextRenderRTL(
+			    "\xD7\x94" "\xD7\x97" "\xD7\x99" "\xD7\x99"
+			    "\xD7\x9D" " "
+			    "\xD7\xA9" "\xD7\x9C" "\xD7\xA0" "\xD7\x95" " "
+			    "\xD7\xAA" "\xD7\x95" "\xD7\xAA" "\xD7\x99"
+			    "\xD7\x9D");
+		}
+	} else if (AG_Strcasestr(font->name, "Japanese")) {
+		if (altPhrase) {
+			/*
+			 * Nihongo (Japanese)
+			 */
+			S = AG_TextRender(
+			    "\xE6\x97\xA5" "\xE6\x9C\xAC" "\xE8\xAA\x9E");
+		} else {
+			/*
+			 * Ohayo gozaimasu ("Good morning")
+			 */
+			S = AG_TextRender(
+			    "\xE3\x81\x8A" "\xE3\x81\xAF" "\xE3\x82\x88"
+			    "\xE3\x81\x86" "\xE3\x81\x94" "\xE3\x81\x96"
+			    "\xE3\x81\x84" "\xE3\x81\xBE" "\xE3\x81\x99"
+			    "\xE3\x80\x82");
+		}
+
+	} else if (AG_Strcasestr(font->name, "MUTT ClearlyU Alternate Glyphs Wide")) {
+
+		S = AG_TextRender("\xC5\xA2"      "\xC4\xA3"     "\xC4\xBD"
+		   "\xC4\xBE"     "\xC5\x9E"      "\xC5\x9F"     "\xC5\xA2"
+		   "\xC5\xA3"     "\xC5\xA5"      "\xCF\x9E"     "\xCF\xA1"
+		   "\xCF\xA2"     "\xCF\xA3"      "\xD9\xAB"     "\xDB\x81"
+		   "\xDB\x82"     "\xDB\x83"      "\xDB\xB4"     "\xDB\xB7"
+		   "\xE0\xA4\x96" "\xE1\x82\xA0"  "\xE1\x82\xA1" "\xE1\x82\xA2");
+
+	} else if (AG_Strcasestr(font->name, "MUTT ClearlyU PUA")) {
+
+		S = AG_TextRender( "\xEE\x84\xAE" "\xEE\x84\xAF" "\xEE\x87\xB0"
+		    "\xEE\x88\xB4" "\xEE\x89\x9F" "\xEE\xB7\xAD" "\xEE\xB7\xAE"
+		    "\xEF\x83\x86" "\xEF\x83\x89" "\xEF\x83\xB7" "\xEF\x83\xB8"
+		    "\xEF\x83\xB9" "\xEF\xA3\x90" "\xEF\xA3\x91" "\xEF\xA3\x92"
+		    "\xEF\xA3\x93" "\xEF\xA3\x94" "\xEF\xA3\x95" "\xEF\xA3\x96"
+		    "\xEF\xA3\x97" "\xEF\xA3\x98" "\xEF\xA3\x99" "\xEF\xA3\x9A"
+		    "\xEF\xA3\x9B");
+
+	} else if (Strcasecmp(font->name, "Noto Sans Linear B") == 0) {
+
+		if (altPhrase) {
+			/* Linear B Ideograms */
+			S = AG_TextRender(
+			    "\xF0\x90\x83\xA1" "\xF0\x90\x83\xA2" "\xF0\x90\x83\xA3" 
+			    "\xF0\x90\x83\xA4" "\xF0\x90\x83\xA5" "\xF0\x90\x83\xA6" 
+			    "\xF0\x90\x83\xA7" "\xF0\x90\x83\xA8" "\xF0\x90\x83\xA9" 
+			    "\xF0\x90\x83\xAA" "\xF0\x90\x83\xAB" "\xF0\x90\x83\xAC" 
+			    "\xF0\x90\x83\xAD" "\xF0\x90\x83\xAE" "\xF0\x90\x83\xAF"
+			    "\n"
+			    "\xF0\x90\x83\xB0" "\xF0\x90\x83\xB1" "\xF0\x90\x83\xB2"
+			    "\xF0\x90\x83\xB3" "\xF0\x90\x83\xB4" "\xF0\x90\x83\xB5"
+			    "\xF0\x90\x83\xB6" "\xF0\x90\x83\xB7" "\xF0\x90\x83\xB8"
+			    "\xF0\x90\x83\xBF" "\xF0\x90\x83\xC0" "\xF0\x90\x83\xC1");
+		} else {
+			/* Linear B Syllables */
+			S = AG_TextRender(
+			    "\xF0\x90\x80\x80" "\xF0\x90\x80\x81" "\xF0\x90\x80\x82"
+			    "\xF0\x90\x80\x83" "\xF0\x90\x80\x84" "\xF0\x90\x80\x85"
+			    "\xF0\x90\x80\x86" "\xF0\x90\x80\x87" "\xF0\x90\x80\x88"
+			    "\xF0\x90\x80\x8A" "\xF0\x90\x80\x8B" "\xF0\x90\x80\x8D"
+			    "\xF0\x90\x80\x8E" "\xF0\x90\x80\x8F" "\xF0\x90\x80\x90"
+			    "\xF0\x90\x80\x91" "\xF0\x90\x80\x92" "\n"
+			    "\xF0\x90\x80\x93" "\xF0\x90\x80\x94" "\xF0\x90\x80\x95" 
+			    "\xF0\x90\x80\x96" "\xF0\x90\x80\x97" "\xF0\x90\x80\x98" 
+			    "\xF0\x90\x80\x9F" "\xF0\x90\x80\xA0" "\xF0\x90\x80\xA1"
+			    "\xF0\x90\x80\xA2" "\xF0\x90\x80\xA3" "\xF0\x90\x80\xA4"
+			    "\xF0\x90\x80\xA5" "\xF0\x90\x80\xA6" "\xF0\x90\x80\xA7"
+			    "\xF0\x90\x80\xA8" "\xF0\x90\x80\xA9" "\xF0\x90\x80\xAA"
+			    );
+		}
+
+
+	} else if (Strcasecmp(font->name, "Twitter Color Emoji") == 0) {
+
+		S = AG_TextRender(
+		    "\xF0\x9F\x98\x80" "\xF0\x9F\x98\x81" "\xF0\x9F\x98\x82"
+		    "\xF0\x9F\x98\x83" "\xF0\x9F\x98\x84" "\xF0\x9F\x98\x85"
+		    "\xF0\x9F\x98\x86" "\xF0\x9F\x98\x87" "\xF0\x9F\x98\x88"
+		    "\xF0\x9F\x98\x89" "\xF0\x9F\x98\x8A" "\xF0\x9F\x98\x8B"
+		    "\xF0\x9F\x98\x8C" "\xF0\x9F\x98\x8D" "\xF0\x9F\x98\x8E");
+	
+	} else if (strcmp(font->name, "agar-ideograms.agbf") == 0) {
+
+		/* 34 wide */
+		S = AG_TextRender(
+		    AGSI_SPKR_W_3_SOUND_WAVES AGSI_BEZIER AGSI_BUTTON
+		    AGSI_CHARSETS AGSI_CHECKBOX AGSI_WINDOW_GRADIENT
+		    AGSI_CONSOLE AGSI_CUSTOM_WIDGET AGSI_FIXED_LAYOUT
+		    AGSI_WIDGET_FOCUS AGSI_TYPOGRAPHY AGSI_FILESYSTEM
+		    AGSI_WIREFRAME_CUBE AGSI_LOAD_IMAGE AGSI_SAVE_IMAGE
+		    AGSI_KEYBOARD_KEY AGSI_MATH_X_EQUALS
+		    AGSI_H_MAXIMIZE AGSI_V_MAXIMIZE AGSI_MEDIUM_WINDOW
+		    AGSI_SMALL_WINDOW AGSI_SMALL_SPHERE AGSI_LARGE_SPHERE
+		    AGSI_ARTISTS_PALETTE AGSI_WINDOW_PANE AGSI_SINE_WAVE
+		    AGSI_RADIO_BUTTON AGSI_RENDER_TO_SURFACE
+		    AGSI_HORIZ_SCROLLBAR AGSI_VERT_SCROLLBAR AGSI_SCROLLVIEW
+		    AGSI_SWORD AGSI_NUL_TERMINATION AGSI_TABLE 
+		    "\n"
+		    AGSI_TEXTBOX AGSI_PROGRESS_BAR AGSI_CANNED_DIALOG
+		    AGSI_THREADS AGSI_EMPTY_HOURGLASS AGSI_UNIT_CONVERSION
+		    AGSI_USER_ACCESS AGSI_POPULATED_WINDOW AGSI_TWO_WINDOWS
+		    AGSI_MENUBOOL_TRUE AGSI_MENUBOOL_FALSE AGSI_MENU_EXPANDER
+		    AGSI_BOX_VERT AGSI_BOX_HORIZ
+		    AGSI_ALICE AGSI_BOB AGSI_TEE_SHIRT
+		    AGSI_JEANS AGSI_USER_W_3_SOUND_WAVES AGSI_PILE_OF_POO
+		    AGSI_FOLDED_DIAPER AGSI_UNFOLDED_DIAPER AGSI_PAPER_ROLL
+		    AGSI_CONTAINER AGSI_PARCEL AGSI_SIZE_XS AGSI_SIZE_SM
+		    AGSI_SIZE_MD AGSI_SIZE_LG AGSI_SIZE_XL AGSI_SIZE_2XL
+		    AGSI_SIZE_3XL AGSI_SIZE_4XL AGSI_LOWER_R_PENCIL 
+		    "\n"
+		    AGSI_LOWER_L_PENCIL AGSI_CLOSE_X AGSI_GEAR AGSI_EXPORT_DOCUMENT
+		    AGSI_PAD AGSI_DEBUGGER AGSI_L_MENU_EXPANDER AGSI_USB_STICK
+		    AGSI_VERTICAL_SPOOL AGSI_HORIZONTAL_SPOOL AGSI_WHEELCHAIR_SYMBOL
+		    AGSI_DIP_CHIP AGSI_SURFACE_MOUNT_CHIP AGSI_VACUUM_TUBE
+		    AGSI_STOPWATCH AGSI_ZOOM_IN AGSI_ZOOM_OUT
+		    AGSI_ZOOM_RESET AGSI_AGAR_AG AGSI_AGAR_AR AGSI_CUT AGSI_COPY
+		    AGSI_LH_COPY AGSI_CLIPBOARD AGSI_PASTE AGSI_LH_PASTE
+		    AGSI_SELECT_ALL AGSI_FLOPPY_DISK AGSI_DVD AGSI_CLEAR_ALL
+		    AGSI_JOYSTICK AGSI_GAME_CONTROLLER AGSI_TOUCHSCREEN
+		    AGSI_TWO_BUTTON_MOUSE
+		    "\n"
+		    AGSI_TRI_CONSTRUCTION_SIGN AGSI_CONSTRUCTION_SIGN
+		    AGSI_EDGAR_ALLAN_POE AGSI_AGARIAN AGSI_AGARIAN_WARRIOR
+		    AGSI_UNDO AGSI_REDO AGSI_ALPHA_ARCH AGSI_AMIGA_BALL
+		    AGSI_COMMODORE_LOGO AGSI_AMD_LOGO AGSI_6502_ARCH
+		    AGSI_AMIGA_LOGO AGSI_MOTOROLA_LOGO AGSI_MAMISMOKE
+		    AGSI_TGT_FG_COLOR AGSI_TGT_BG_COLOR AGSI_ARM_ARCH
+		    AGSI_DREAMCAST AGSI_GAMECUBE AGSI_SEGA AGSI_PA_RISC_ARCH
+		    AGSI_X86_ARCH AGSI_X64_ARCH AGSI_I386_ARCH AGSI_JSON
+		    AGSI_NES_CONTROLLER AGSI_MIPS32_ARCH AGSI_MIPS64_ARCH
+		    AGSI_N64_LOGO AGSI_IA64_ARCH AGSI_PPC32_ARCH AGSI_PPC64_ARCH
+		    AGSI_SNES_LOGO
+		    "\n"
+		    AGSI_RISCV_ARCH);
+
+	} else {
+		if (altPhrase) {
+			S = AG_TextRender(
+			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789\n"
+			    "abcdefghijklmnopqrstuvwxyz 0123456789");
+		} else {
+			S = AG_TextRender(
+			    "The Quick Brown Fox Jumps Over The Lazy Dog");
+		}
+	}
+	return (S);
+}
+
 static void
 Init(void *_Nonnull obj)
 {
 	AG_FontSelector *fs = obj;
+	AG_Notebook *nb;
+	AG_NotebookTab *nt;
 	
 	fs->flags = AG_FONTSELECTOR_UPDATE;
 	fs->curFace[0] = '\0';
@@ -523,70 +838,83 @@ Init(void *_Nonnull obj)
 	fs->curSize = 0.0f;
 
 	fs->hPane = AG_PaneNewHoriz(fs, AG_PANE_EXPAND);
+	fs->tlFaces = AG_TlistNew(fs->hPane->div[0], AG_TLIST_EXPAND);
+	fs->hPane2 = AG_PaneNewHoriz(fs->hPane->div[1], AG_PANE_EXPAND);
+	fs->tlStyles = AG_TlistNew(fs->hPane2->div[0], AG_TLIST_EXPAND);
+	fs->tlSizes = AG_TlistNew(fs->hPane2->div[1], AG_TLIST_EXPAND);
+
+	nb = AG_NotebookNew(fs->hPane2->div[1], AG_NOTEBOOK_HFILL);
+	AG_SetFontSize(nb, "80%");
+
+	nt = AG_NotebookAdd(nb, _("Color"), AG_BOX_VERT);
+	AG_SetPadding(nt, "2");
 	{
-		AG_Box *box;
-		AG_Notebook *nb;
-		AG_NotebookTab *nt;
+		AG_Box *boxHoriz, *boxColor;
+		AG_HSVPal *pal;
+		AG_Button *btnBG, *btnFG;
 
-		fs->tlFaces = AG_TlistNew(fs->hPane->div[0], AG_TLIST_EXPAND);
-		fs->hPane2 = AG_PaneNewHoriz(fs->hPane->div[1], AG_PANE_EXPAND);
-		fs->tlStyles = AG_TlistNew(fs->hPane2->div[0], AG_TLIST_EXPAND);
-		fs->tlSizes = AG_TlistNew(fs->hPane2->div[1], AG_TLIST_EXPAND);
+		boxHoriz = AG_BoxNewHoriz(nt, AG_BOX_EXPAND);
 
-		nb = AG_NotebookNew(fs->hPane2->div[1], AG_NOTEBOOK_HFILL);
-		nt = AG_NotebookAdd(nb, _("Color"), AG_BOX_VERT);
-		AG_SetStyle(nt, "padding", "5");
+		pal = fs->pal = AG_HSVPalNew(boxHoriz,
+		    AG_HSVPAL_NOPREVIEW | AG_HSVPAL_NOALPHA |
+		    AG_HSVPAL_HFILL);
+
+		AG_BindPointer(pal, "agcolor", (void *)&fs->cPreviewFG);
+		AG_SetEvent(pal, "h-changed", PreviewColorChanged,"%p",fs);
+		AG_SetEvent(pal, "sv-changed", PreviewColorChanged,"%p",fs);
+
+		boxColor = AG_BoxNewVert(boxHoriz, AG_BOX_VFILL |
+		                                   AG_BOX_HOMOGENOUS);
+		AG_SetFontSize(boxColor, "80%");
 		{
-			AG_HSVPal *pal;
-			AG_Button *btnBG, *btnFG;
+			btnFG = AG_ButtonNewS(boxColor,
+			    AG_BUTTON_STICKY | AG_BUTTON_HFILL,
+			    AGSI_IDEOGRAM AGSI_TGT_FG_COLOR AGSI_RST "\n\n"
+			    "FG");
+			btnBG = AG_ButtonNewS(boxColor,
+			    AG_BUTTON_STICKY | AG_BUTTON_HFILL,
+			    AGSI_IDEOGRAM AGSI_TGT_BG_COLOR AGSI_RST "\n\n"
+			    "BG");
 
-			box = AG_BoxNewHoriz(nt, AG_BOX_HFILL | AG_BOX_HOMOGENOUS);
-			AG_SetStyle(box, "font-size", "80%");
-
-			btnBG = AG_ButtonNewS(box, AG_BUTTON_STICKY, _("BG"));
-			btnFG = AG_ButtonNewS(box, AG_BUTTON_STICKY, _("FG"));
 			AG_ButtonSetState(btnFG, 1);
-			AG_SetEvent(btnBG, "button-pushed",
-			    EditBgFgColor,"%p,%p,%p", fs, &fs->cPreviewBG, btnFG);
+
+			AG_SetPadding(btnFG, "4");
+			AG_SetPadding(btnBG, "4");
+
 			AG_SetEvent(btnFG, "button-pushed",
 			    EditBgFgColor,"%p,%p,%p", fs, &fs->cPreviewFG, btnBG);
-
-			pal = fs->pal = AG_HSVPalNew(nt, AG_HSVPAL_NOPREVIEW |
-			                                 AG_HSVPAL_NOALPHA |
-		                                         AG_HSVPAL_HFILL);
-			AG_BindPointer(pal, "agcolor", (void *)&fs->cPreviewFG);
-			AG_SetEvent(pal, "h-changed", PreviewColorChanged,"%p",fs);
-			AG_SetEvent(pal, "sv-changed", PreviewColorChanged,"%p",fs);
+			AG_SetEvent(btnBG, "button-pushed",
+			    EditBgFgColor,"%p,%p,%p", fs, &fs->cPreviewBG, btnFG);
 		}
+	}
 
-		nt = AG_NotebookAdd(nb, _("Metrics"), AG_BOX_VERT);
-		AG_SetStyle(nt, "padding", "5");
-		{
-			AG_CheckboxNewFlag(nt, 0, _("Baseline"),
-			    &fs->flags, AG_FONTSELECTOR_BASELINE);
-			AG_CheckboxNewFlag(nt, 0, _("Corrections"),
-			    &fs->flags, AG_FONTSELECTOR_CORRECTIONS);
-			AG_CheckboxNewFlag(nt, 0, _("Bounding box"),
-			    &fs->flags, AG_FONTSELECTOR_BOUNDING_BOX);
+	nt = AG_NotebookAdd(nb, _("Metrics"), AG_BOX_VERT);
+	AG_SetPadding(nt, "5");
+	{
+		AG_CheckboxNewFlag(nt, 0, _("Adjusted Baseline"), &fs->flags,
+		    AG_FONTSELECTOR_BASELINE);
+		AG_CheckboxNewFlag(nt, 0, _("Original Baseline"), &fs->flags,
+		    AG_FONTSELECTOR_CORRECTIONS);
+		AG_CheckboxNewFlag(nt, 0, _("Bounding Box"), &fs->flags,
+		    AG_FONTSELECTOR_BOUNDING_BOX);
 
-			AG_SeparatorNewHoriz(nt);
+		AG_SeparatorNewHoriz(nt);
 
-			fs->lblMetrics = AG_LabelNewS(nt, AG_LABEL_EXPAND,
-			    _("No data."));
-		}
+		fs->lblMetrics = AG_LabelNewS(nt, AG_LABEL_EXPAND, _("No data."));
 	}
 	
 	fs->font = NULL;
-	fs->rPreview.x = 0;
+	fs->rPreview.x = 0;   /* TODO use pane */
 	fs->rPreview.y = 0;
 	fs->rPreview.w = 0;
 	fs->rPreview.h = 80;
 	AG_ColorNone(&fs->cPreviewBG);
 	AG_ColorWhite(&fs->cPreviewFG);
+	fs->previewFn = PreviewDefault;
 
-	AG_TlistSizeHint(fs->tlFaces, "<New Century Schoolbook>", 15);
-	AG_TlistSizeHint(fs->tlStyles, "<Condensed Bold Oblique>", 15);
-	AG_TlistSizeHint(fs->tlSizes, "<XXXXXXX>", 10);
+	AG_TlistSizeHint(fs->tlFaces, "<Adobe New Century Schoolbook>", 10);
+	AG_TlistSizeHint(fs->tlStyles, "<Condensed Bold Oblique>", 8);
+	AG_TlistSizeHint(fs->tlSizes, "<XXXXXXX>", 8);
 	
 	/* Handle "font" binding programmatically */
 	AG_BindPointer(fs, "font", (void *)&fs->font);

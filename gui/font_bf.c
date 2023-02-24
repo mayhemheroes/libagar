@@ -370,29 +370,14 @@ Open(void *_Nonnull obj, const char *_Nonnull path)
 				}
 			} else if (strncmp(line,"advance ",8) == 0 && line[8] != '\0') {
 				fontBf->advance = (int)strtoul(&line[7],NULL,10);
-#ifdef DEBUG_FONTS
-				Debug(fontBf, "Advance: %d\n", fontBf->advance);
-#endif
 			} else if (strncmp(line,"ascent ",7) == 0 && line[7] != '\0') {
 				font->ascent = (int)strtoul(&line[7],NULL,10);
-#ifdef DEBUG_FONTS
-				Debug(fontBf, "Ascent: %d\n", font->ascent);
-#endif
 			} else if (strncmp(line,"lineskip ",9) == 0 && line[9] != '\0') {
 				font->lineskip = (int)strtoul(&line[9],NULL,10);
-#ifdef DEBUG_FONTS
-				Debug(fontBf, "Line skip: %d\n", font->ascent);
-#endif
 			} else if (strncmp(line,"underline-position ",18) == 0 && line[18] != '\0') {
 				font->underlinePos = (int)strtoul(&line[18],NULL,10);
-#ifdef DEBUG_FONTS
-				Debug(fontBf, "Underline position: %d\n", font->underlinePos);
-#endif
 			} else if (strncmp(line,"underline-thickness ",19) == 0 && line[19] != '\0') {
 				font->underlineThk = (int)strtoul(&line[19],NULL,10);
-#ifdef DEBUG_FONTS
-				Debug(fontBf, "Underline thickness: %d\n", font->underlineThk);
-#endif
 			} else if (strcmp(line,"unicode") == 0) {
 				inUnicodeBlock = 1;
 				maxUnicode = 32;
@@ -417,9 +402,6 @@ Open(void *_Nonnull obj, const char *_Nonnull path)
 			if ((fontBf->name = TryStrdup(name)) == NULL) {
 				goto fail;
 			}
-#ifdef DEBUG_FONTS
-			Debug(fontBf, "Name: `%s'\n", name);
-#endif
 		} else if (strncmp(line,"author",6) == 0 ||
 		           strncmp(line,"license",7) == 0) {
 			goto next_line;
@@ -437,9 +419,6 @@ Open(void *_Nonnull obj, const char *_Nonnull path)
 				fontBf->colorize = AG_FONT_BF_COLORIZE_NONE;
 				break;
 			}
-#ifdef DEBUG_FONTS
-			Debug(fontBf, "Colorization mode: %d\n", fontBf->colorize);
-#endif
 		} else if (strncmp(line,"size ",5) == 0 && line[5] != '\0') {
 			char *ep;
 			float sizeMin, sizeMax;
@@ -460,10 +439,6 @@ Open(void *_Nonnull obj, const char *_Nonnull path)
 
 			fontFlags = (Uint)strtoul(&line[8],NULL,16);
 			inMatchingFlags = (font->flags == fontFlags) ? 1 : 0;
-#ifdef DEBUG_FONTS
-			if (inMatchingFlags)
-				Debug(fontBf, "Matching flags: 0x%x\n", font->flags);
-#endif
 		}
 next_line:
 		nLine++;
@@ -487,7 +462,8 @@ syntax_error:
 		goto fail;
 	}
 	font->height = fontBf->height;
-	font->lineskip = font->height;
+	if (font->lineskip == 0)                                 /* Default */
+		font->lineskip = font->height + 2;
 
 	fontBf->flags |= AG_FONT_BF_VALID;
 	free(buf);
@@ -580,7 +556,7 @@ RenderColorizeNone(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 {
 	const AG_TextState *ts = AG_TEXT_STATE_CUR();
 	AG_Font *fontCur = fontOrig;
-	const int lineSkip = fontCur->lineskip;
+	const int lineskip = fontCur->lineskip;
 	const int wdRef = AGFONTBF(fontCur)->wdRef;
 	const AG_Char *ch;
 	AG_Color cBg = *cBgOrig;
@@ -599,7 +575,7 @@ RenderColorizeNone(const AG_Char *_Nonnull ucs, AG_Surface *_Nonnull S,
 	for (ch = &ucs[0], line = 0; *ch != '\0'; ch++) {
 		switch (*ch) {
 		case '\n':
-			rd.y += lineSkip;
+			rd.y += lineskip;
 			rd.x = JustifyOffset(ts, Tm->w, Tm->wLines[++line]);
 			continue;
 		case '\r':
@@ -919,7 +895,8 @@ Init(void *_Nonnull obj)
 	    sizeof(int) +                            /* height */
 	    sizeof(int) +                            /* wdRef */
 	    sizeof(AG_Rect *) +                      /* rects */
-	    sizeof(Uint));                           /* nRects */
+	    sizeof(Uint) +                           /* nRects */
+	    sizeof(int));                            /* advance */
 
 	fontBf->advance = 1;
 }

@@ -50,34 +50,97 @@
 /* #define DEBUG_FONTS */
 
 /*
- * Adjustments to the scaling and baselines of core fonts (relative to Algue).
- * Option flags: AG_FONT_BOLD (bold style is also the Regular style).
+ * Adjustments to the scaling and baselines of fonts relative to the
+ * default font (Algue). Also indicate when given styles of a font are also
+ * considered the Regular or Normal style of that font family.
  */
 const AG_FontAdjustment agFontAdjustments[] = {
-/*                                                 0.0 10.4 14.0 21.0 23.8 35.0 to- */
-/*                                                10.4 14.0 21.0 23.8 35.0 inf  pts */
-	{ "cm-sans",         0,            1.1f, { -4,  -4,  -6,  -7,  -9, -16 } },
-	{ "cm-serif",        0,            1.1f, { -1,  -2,   0,  -2,  -4,  -5 } },
-	{ "league-spartan",  0,            1.0f, { -2,  -2,  -2,  -3,  -5,  -6 } },
-	{ "league-gothic",   AG_FONT_BOLD, 1.1f, { -1,  -1,  -1,  -2,  -1,  -3 } },
-	{ "fraktur",         AG_FONT_BOLD, 1.1f, { +1,  +1,  +1,  +1,  +1,  +1 } },
-	{ "source-han-sans", 0,            1.0f, { -8, -12, -15, -20, -28, -35 } },
-	{ "unialgue",        0,            1.0f, { -3,  -4,  -5,  -7, -11, -12 } },
-	{ NULL,              0,            0.0f, {  0,   0,   0,   0,   0,   0 } }
+/*                                   Pts From:   0.0 10.4 14.0 21.0 23.8 35.0 */
+/*                                         To:  10.4 14.0 21.0 23.8 35.0 +inf */
+	{ "charter.otf",                  1.1f, { -3,  -2,  -2,  -3,  -3,  -6 }, 0,0 },
+	{ "courier",                      1.0f, {  0,   0,  +1,  +1,  +2,  +3 }, 0,0 },
+	{ "courier 10 pitch",             1.0f, {  0,   0,  +1,  +1,  +2,  +3 }, 0,0 },
+	{ "dejavu sans",                  1.0f, { -4,  -4,  -6,  -7,  -9, -16 }, 0,0 },
+	{ "dejavu sans mono",             1.0f, { -2,  -2,  -2,   0,   0,  -1 }, 0,0 },
+	{ "dejavu serif",                 1.0f, { -2,  -3,  -3,  -4,  -5,  -7 }, 0,0 },
+	{ "droid arabic kufi",            1.0f, {  0,   0,   0,  +1,  +2,  +3 }, 0,0 },
+	{ "droid arabic naskh",           1.0f, {  0,   0,   0,  +1,  +3, +10 }, 0,0 },
+	{ "droid sans",                   1.0f, {  0,  -1,  -1,  -1,  -2,  -4 }, 0,0 },
+	{ "droid sans arabic",            1.0f, {  0,   0,   0,   0,  +1,  +2 }, 0,0 },
+	{ "droid sans armenian",          1.0f, {  0,   0,   0,   0,  +1,  +3 }, 0,0 },
+	{ "droid sans japanese",          1.0f, {  0,   0,  +1,  +1,  +4,  +9 }, 0,0 },
+	{ "droid sans hebrew",            1.0f, {  0,   0,   0,  -1,  -2,  -4 }, 0,0 },
+	{ "droid sans mono",              1.0f, {  0,   0,  -1,  -2,  -4,  -5 }, 0,0 },
+	{ "gentium basic",                1.0f, { -2,  -3,  -3,  -4,  -5,  -7 }, 0,0 },
+	{ "gentium book basic",           1.0f, { -2,  -3,  -3,  -4,  -5,  -7 }, 0,0 },
+	{ "goha-tibeb zemen",             1.0f, { -3,  -3,  -5,  -7,  -8, -13 }, 0,0 },
+/*                                  Pts From:   0.0 10.4 14.0 21.0 23.8 35.0 */
+/*                                        To:  10.4 14.0 21.0 23.8 35.0 +inf */
+	{ "league-gothic-"
+	  "condensed-italic.otf",         1.1f, { -1,  -1,   0,  -1,  -2,  -4 }, AG_FONT_BOLD,0 },
+	{ "league-gothic-condensed.otf",  1.1f, { -1,  -1,   0,  -1,  -2,  -4 }, AG_FONT_BOLD,0 },
+	{ "league-gothic-italic.otf",     1.1f, { -1,  -1,   0,  -1,  -2,  -4 }, AG_FONT_BOLD,0 },
+	{ "league-gothic.otf",            1.1f, { -1,  -1,   0,  -1,  -2,  -4 }, AG_FONT_BOLD,0 },
+	{ "league-spartan.otf",           1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "league-spartan-black.otf",     1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "league-spartan-bold.otf",      1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "league-spartan-extrabold.otf", 1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "league-spartan-extralight.otf",1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "league-spartan-light.otf",     1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "league-spartan-semibold.otf",  1.1f, { -3,  -3,  -4,  -5,  -7, -10 }, 0,0 },
+	{ "fraktur.ttf",                  1.1f, { +1,  +1,  +1,  +1,  +1,  +1 }, AG_FONT_BOLD,0 },
+	{ "noto sans cjk sc",             1.0f, { -9, -11, -15, -17, -21, -42 }, 0,0 },
+	{ "noto serif sc",                1.0f, { -6,  -8, -12, -14, -18, -35 }, 0,0 },
+	{ "noto serif cjk sc",            1.0f, {-10, -12, -16, -18, -23, -42 }, 0,0 },
+	{ "noto sans sc",                 1.0f, { -6,  -8, -13, -15, -18, -38 }, 0,0 },
+	{ "noto sans symbols",            1.0f, {  0,   0,   0,   0,  -1,  -2 }, 0,0 },
+	{ "noto sans mono cjk sc",        1.0f, { -6,  -9, -11, -14, -20, -38 }, 0,0 },
+	{ "noto mono",                    1.0f, { -1,  -1,  -1,  -1,  -2,  -4 }, 0,0 },
+	{ "serto jerusalem",              1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+	{ "serto jerusalem outline",      1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+/*                                   Pts From:   0.0 10.4 14.0 21.0 23.8 35.0 */
+/*                                         To:  10.4 14.0 21.0 23.8 35.0 +inf */
+	{ "serto kharput",                1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+	{ "serto malankara",              1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+	{ "serto mardin",                 1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+	{ "serto urhoy",                  1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+	{ "unialgue.ttf",                 1.0f, { -6,  -7,  -7, -10, -12, -15 }, 0,0 },
+	{ "utopia",                       1.0f, {  0,   0,   0,   0,  +2,  +4 }, 0,0 },
+	{ NULL,                           0.0f, {  0,   0,   0,   0,   0,   0 }, 0,0 }
 };
 
-/* Alternate names for fonts. */
+/*
+ * Aliases for font names. This table exists for performance reasons.
+ * It prevents unnecessary loading of the built-in (algue) from its file copy.
+ * We also map core font names to their respective files so the loader will
+ * not have to cycle through (and test) every possible font file extension.
+ */
 const AG_FontAlias agFontAliases[] = {
-	{ "agar-minimal",          "agar-minimal.agbf" },
-	{ "algue",                 "_agFontAlgue" },            /* Built-in */
-	{ "algue.ttf",             "_agFontAlgue" },
-	{ "algue-bold",            "_agFontAlgue_Bold" },
-	{ "algue-bold.ttf",        "_agFontAlgue_Bold" },
-	{ "algue-italic",          "_agFontAlgue_Italic" },
-	{ "algue-italic.ttf",      "_agFontAlgue_Italic" },
-	{ "algue-bold-italic",     "_agFontAlgue_BoldItalic" },
-	{ "algue-bold-italic.ttf", "_agFontAlgue_BoldItalic" },
-	{ NULL,                     NULL }
+	{ "algue",                          "_agFontAlgue" },
+	{ "algue.ttf",                      "_agFontAlgue" },
+	{ "algue-bold",                     "_agFontAlgue_Bold" },
+	{ "algue-bold.ttf",                 "_agFontAlgue_Bold" },
+	{ "algue-italic",                   "_agFontAlgue_Italic" },
+	{ "algue-italic.ttf",               "_agFontAlgue_Italic" },
+	{ "algue-bold-italic",              "_agFontAlgue_BoldItalic" },
+	{ "algue-bold-italic.ttf",          "_agFontAlgue_BoldItalic" },
+	{ "unialgue",                       "unialgue.ttf" },
+	{ "agar-minimal",                   "agar-minimal.agbf" },
+	{ "agar-ideograms",                 "agar-ideograms.agbf" },
+	{ "monoalgue",                      "monoalgue.ttf" },
+	{ "monoalgue-bold",                 "monoalgue-bold.ttf" },
+	{ "monoalgue-italic",               "monoalgue-italic.ttf" },
+	{ "monoalgue-bold-italic",          "monoalgue-bold-italic.ttf" },
+	{ "charter",                        "charter.otf" },
+	{ "charter-bold",                   "charter-bold.otf" },
+	{ "charter-italic",                 "charter-bold-italic.otf" },
+	{ "league-spartan",                 "league-spartan.otf" },
+	{ "league-gothic",                  "league-gothic.otf" },
+	{ "league-gothic-italic",           "league-gothic-italic.otf" },
+	{ "league-gothic-condensed",        "league-gothic-condensed.otf" },
+	{ "league-gothic-condensed-italic", "league-gothic-condensed-italic.otf" },
+	{ "fraktur",                        "fraktur.ttf" },
+	{ NULL,                             NULL }
 };
 
 /* Map fontconfig FC_STYLE names to AG_Font flags. */
@@ -101,7 +164,6 @@ const AG_FontStyleName agFontStyleNames[] = {
 	/* Styles */
 	{ "Oblique",        AG_FONT_OBLIQUE },
 	{ "Italic",         AG_FONT_ITALIC },
-	{ "UprightItalic",  AG_FONT_UPRIGHT_ITALIC },
 	{ NULL,             0 }
 };
 
@@ -132,14 +194,6 @@ const AG_FontStyleSort agFontStyleSort[] = {
 	{ AG_FONT_BOLD       | AG_FONT_ITALIC,                           21 },
 	{ AG_FONT_EXTRABOLD  | AG_FONT_ITALIC,                           22 },
 	{ AG_FONT_BLACK      | AG_FONT_ITALIC,                           23 },
-	{ AG_FONT_UPRIGHT_ITALIC,                                        24 },
-	{ AG_FONT_THIN       | AG_FONT_UPRIGHT_ITALIC,                   25 },
-	{ AG_FONT_EXTRALIGHT | AG_FONT_UPRIGHT_ITALIC,                   26 },
-	{ AG_FONT_LIGHT      | AG_FONT_UPRIGHT_ITALIC,                   27 },
-	{ AG_FONT_SEMIBOLD   | AG_FONT_UPRIGHT_ITALIC,                   28 },
-	{ AG_FONT_BOLD       | AG_FONT_UPRIGHT_ITALIC,                   29 },
-	{ AG_FONT_EXTRABOLD  | AG_FONT_UPRIGHT_ITALIC,                   30 },
-	{ AG_FONT_BLACK      | AG_FONT_UPRIGHT_ITALIC,                   31 },
 
 	{ AG_FONT_ULTRACONDENSED,                                        32 },
 	{ AG_FONT_ULTRACONDENSED | AG_FONT_OBLIQUE,                      33 },
@@ -327,7 +381,7 @@ AG_StaticFont *agBuiltinFonts[] = {
 	/* Is this weight the Regular weight for this font? */                 \
 	for (fa = &agFontAdjustments[0]; fa->face != NULL; fa++) {             \
 		if (strcmp(name, fa->face) == 0 &&                             \
-		    (fa->flags & (weight)))                                    \
+		    (fa->regFlags & (weight)))                                 \
 			break;                                                 \
 	}                                                                      \
 	if (fa->face == NULL) {                                                \
@@ -335,8 +389,6 @@ AG_StaticFont *agBuiltinFonts[] = {
 			Strlcat(path, suffix "-italic", sizeof(path));         \
 		} else if (flags & AG_FONT_OBLIQUE) {                          \
 			Strlcat(path, suffix "-oblique", sizeof(path));        \
-		} else if (flags & AG_FONT_UPRIGHT_ITALIC) {                   \
-			Strlcat(path, suffix "-upright-italic", sizeof(path)); \
 		} else {                                                       \
 			Strlcat(path, suffix, sizeof(path));                   \
 		}                                                              \
@@ -345,8 +397,6 @@ AG_StaticFont *agBuiltinFonts[] = {
 			Strlcat(path, "-italic", sizeof(path));                \
 		} else if (flags & AG_FONT_OBLIQUE) {                          \
 			Strlcat(path, "-oblique", sizeof(path));               \
-		} else if (flags & AG_FONT_UPRIGHT_ITALIC) {                   \
-			Strlcat(path, "-upright-italic", sizeof(path));        \
 		}                                                              \
 	}
 
@@ -528,8 +578,8 @@ AG_FetchFont(const char *face, float fontSize, Uint flags)
 			/* Style suffix */
 			if (flags & AG_FONT_ITALIC) {
 				Strlcat(path, "-italic", sizeof(path));
-			} else if (flags & AG_FONT_UPRIGHT_ITALIC) {
-				Strlcat(path, "-upright-italic", sizeof(path));
+			} else if (flags & AG_FONT_OBLIQUE) {
+				Strlcat(path, "-oblique", sizeof(path));
 			}
 
 			/* File extension */
@@ -715,6 +765,8 @@ AG_FetchFont(const char *face, float fontSize, Uint flags)
 		FcPatternDestroy(fpat);
 		FcPatternDestroy(pattern);
 	}
+#else /* !HAVE_FONTCONFIG */
+	(void)isInFontPath;
 #endif /* HAVE_FONTCONFIG */
 
 open_font:
@@ -753,35 +805,14 @@ open_font:
 
 	TAILQ_INSERT_HEAD(&agFontCache, font, fonts);
 out:
-	font->nRefs++;
+#ifdef AG_DEBUG
+	font->tAccess = AG_GetTicks();
+#endif
 	AG_MutexUnlock(&agTextLock);
 	return (font);
 fail:
 	AG_MutexUnlock(&agTextLock);
 	return (NULL);
-}
-
-/*
- * Decrement the reference count on a font. If it reaches 0, release the font.
- * The font must not be the default font (agDefaultFont).
- * agTextLock must be locked.
- */
-void
-AG_UnusedFont(AG_Font *font)
-{
-	AG_OBJECT_ISA(font, "AG_Font:*");
-
-	if (font->nRefs > 0)
-		font->nRefs--;
-
-	if (font->nRefs == 0) {
-#ifdef DEBUG_FONTS
-		Debug(font, "Finalizing font\n");
-#endif
-		AGFONT_OPS(font)->close(font);
-		AG_ObjectDestroy(font);
-	}
-
 }
 
 /*
@@ -883,10 +914,11 @@ AG_FontGetFamilyStyles(AG_Font *font)
 }
 
 /*
- * Write a (fontconfig FC_STYLE compatible) string representation of the
- * given AG_Font flags to a fixed-size buffer buf.
+ * Write a string representation of the given AG_Font style flags to a
+ * fixed-size buffer buf. The representation should be compatible with
+ * Fontconfig FC_STYLE.
  *
- * Return the number of bytes that would have been generated were bufSize
+ * Return the number of bytes that would have been written were bufSize
  * unlimited.
  */
 AG_Size
@@ -915,6 +947,25 @@ AG_FontGetStyleName(char *buf, AG_Size bufSize, Uint flags)
 	return (rv);
 }
 
+/*
+ * Return the AG_Font style flags corresponding to the given string
+ * representation of a font style. The representation is case-insensitive
+ * and should be compatible with Fontconfig FC_STYLE.
+ *
+ * Return 0 if the string could not be parsed.
+ */
+Uint
+AG_FontGetStyleByName(const char *style)
+{
+	const AG_FontStyleName *fsn;
+
+	for (fsn = &agFontStyleNames[0]; fsn->name != NULL; fsn++) {
+		if (Strcasecmp(fsn->name, style) == 0)
+			return (fsn->flag);
+	}
+	return (0);
+}
+
 static void
 Init(void *_Nonnull obj)
 {
@@ -933,7 +984,7 @@ Init(void *_Nonnull obj)
 	                       sizeof(int) +         /* lineskip */
 	                       sizeof(int) +         /* underlinePos */
 	                       sizeof(int) +         /* underlineThk */
-	                       sizeof(Uint));        /* nRefs */
+	                       sizeof(Uint));        /* tAccess */
 }
 
 static int

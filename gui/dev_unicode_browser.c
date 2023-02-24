@@ -204,7 +204,7 @@ SelectUnicodeRange(AG_Event *_Nonnull event)
 		Snprintf(numtext, sizeof(numtext), "U+%x", (Uint)uchar[0]);
         
 		/* prep column 1 */
-		Strlcpy(utf8seq, AGSI_COURIER, sizeof(utf8seq));
+		Strlcpy(utf8seq, AGSI_CODE, sizeof(utf8seq));
 		for (c = &utf8text[0]; *c != '\0'; c++) {
 			char s[16];
 			Snprintf(s, sizeof(s), "\\x%x", (unsigned char)*c);
@@ -228,7 +228,7 @@ ExpandUnicodeRanges(AG_Event *event)
 		AG_TlistItem *ti;
 
 		ti = AG_TlistAdd(tl, NULL,
-		    "(" AGSI_COURIER "0x%04lx" AGSI_RST ") %s",
+		    "(" AGSI_CODE "0x%04lx" AGSI_RST ") %s",
 		    (Ulong)unicodeRanges[i].start,
 		    unicodeRanges[i].name);
 		ti->p1 = (void *)&unicodeRanges[i];
@@ -246,7 +246,7 @@ AG_DEV_UnicodeBrowser(void)
 	if ((win = AG_WindowNewNamedS(0, "DEV_UnicodeBrowser")) == NULL) {
 		return (NULL);
 	}
-	AG_SetStyle(win, "padding", "10 5 5 5");
+	AG_SetPadding(win, "10 5 5 5");
 	AG_WindowSetCaptionS(win, _("Unicode Browser"));
 	AG_WindowSetCloseAction(win, AG_WINDOW_DETACH);
 
@@ -259,8 +259,8 @@ AG_DEV_UnicodeBrowser(void)
 	AG_TreetblAddCol(tt, 0, "<XXXXXXX>", _("Char"));
 	AG_TreetblAddCol(tt, 1, "<XXXXXXXXXXXXX>", _("Unicode"));
 	AG_TreetblAddCol(tt, 2, "<XXXXXXXXXXXXXXXXXXXXXXXXXXX>", _("UTF-8"));
-	AG_SetStyle(tt, "color", "rgb(20,20,20)");
-	AG_SetStyle(tt, "font-size", "120%");
+	AG_SetColor(tt, "rgb(20,20,20)");
+	AG_SetFontSize(tt, "120%");
 
 	AG_SetEvent(comRange, "combo-expanded", ExpandUnicodeRanges, NULL);
 	AG_SetEvent(comRange, "combo-selected", SelectUnicodeRange, "%p", tt);

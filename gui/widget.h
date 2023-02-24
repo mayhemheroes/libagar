@@ -68,18 +68,6 @@ typedef enum ag_widget_sizespec {
 	AG_WIDGET_FILL         /* Expand to fill remaining space ("-") */
 } AG_SizeSpec;
 
-/* Bit flag description (used by AG_Checkbox(3) for example). */
-typedef struct ag_flag_descr {
-#ifdef AG_HAVE_64BIT
-	Uint64 bitmask;			/* Bitmask */
-#else
-	Uint bitmask;			/* Bitmask */
-#endif
-	const char *_Nonnull descr;	/* Description (UTF-8) */
-	int writeable;			/* User-editable */
-	Uint32 _pad;
-} AG_FlagDescr;
-
 /* 
  * High-level widget action.
  */
@@ -441,6 +429,45 @@ void AG_SetFont(void *_Nonnull, const struct ag_font *_Nonnull);
 void AG_SetStyle(void *_Nonnull, const char *_Nonnull, const char *_Nullable);
 void AG_SetStyleF(void *_Nonnull, const char *_Nonnull, const char *_Nullable, ...)
 		 FORMAT_ATTRIBUTE(printf,3,4);
+/*
+ * Shorthands for standard style attributes.
+ */
+#define AG_SetFontFamily(wid,s)        AG_SetStyle((wid), "font-family", (s))
+#define AG_SetFontSize(wid,s)          AG_SetStyle((wid), "font-size", (s))
+#define AG_SetFontWeight(wid,s)        AG_SetStyle((wid), "font-weight", (s))
+#define AG_SetFontStyle(wid,s)         AG_SetStyle((wid), "font-style", (s))
+#define AG_SetFontStretch(wid,s)       AG_SetStyle((wid), "font-stretch", (s))
+#define AG_SetMargin(wid,s)            AG_SetStyle((wid), "margin", (s))
+#define AG_SetPadding(wid,s)           AG_SetStyle((wid), "padding", (s))
+#define AG_SetSpacing(wid,s)           AG_SetStyle((wid), "spacing", (s))
+#define AG_SetColor(wid,s)             AG_SetStyle((wid), "color", (s))
+#define AG_SetColorDisabled(wid,s)     AG_SetStyle((wid), "color#disabled", (s))
+#define AG_SetColorFocused(wid,s)      AG_SetStyle((wid), "color#focused", (s))
+#define AG_SetColorHover(wid,s)        AG_SetStyle((wid), "color#hover", (s))
+#define AG_SetBgColor(wid,s)           AG_SetStyle((wid), "background-color", (s))
+#define AG_SetBgColorDisabled(wid,s)   AG_SetStyle((wid), "background-color#disabled", (s))
+#define AG_SetBgColorFocused(wid,s)    AG_SetStyle((wid), "background-color#focused", (s))
+#define AG_SetBgColorHover(wid,s)      AG_SetStyle((wid), "background-color#hover", (s))
+#define AG_SetTextColor(wid,s)         AG_SetStyle((wid), "text-color", (s))
+#define AG_SetTextColorDisabled(wid,s) AG_SetStyle((wid), "text-color#disabled", (s))
+#define AG_SetTextColorFocused(wid,s)  AG_SetStyle((wid), "text-color#focused", (s))
+#define AG_SetTextColorHover(wid,s)    AG_SetStyle((wid), "text-color#hover", (s))
+#define AG_SetLineColor(wid,s)         AG_SetStyle((wid), "line-color", (s))
+#define AG_SetLineColorDisabled(wid,s) AG_SetStyle((wid), "line-color#disabled", (s))
+#define AG_SetLineColorFocused(wid,s)  AG_SetStyle((wid), "line-color#focused", (s))
+#define AG_SetLineColorHover(wid,s)    AG_SetStyle((wid), "line-color#hover", (s))
+#define AG_SetHighColor(wid,s)         AG_SetStyle((wid), "high-color", (s))
+#define AG_SetHighColorDisabled(wid,s) AG_SetStyle((wid), "high-color#disabled", (s))
+#define AG_SetHighColorFocused(wid,s)  AG_SetStyle((wid), "high-color#focused", (s))
+#define AG_SetHighColorHover(wid,s)    AG_SetStyle((wid), "high-color#hover", (s))
+#define AG_SetLowColor(wid,s)          AG_SetStyle((wid), "low-color", (s))
+#define AG_SetLowColorDisabled(wid,s)  AG_SetStyle((wid), "low-color#disabled", (s))
+#define AG_SetLowColorFocused(wid,s)   AG_SetStyle((wid), "low-color#focused", (s))
+#define AG_SetLowColorHover(wid,s)     AG_SetStyle((wid), "low-color#hover", (s))
+#define AG_SetSelColor(wid,s)          AG_SetStyle((wid), "selection-color", (s))
+#define AG_SetSelColorDisabled(wid,s)  AG_SetStyle((wid), "selection-color#disabled", (s))
+#define AG_SetSelColorFocused(wid,s)   AG_SetStyle((wid), "selection-color#focused", (s))
+#define AG_SetSelColorHover(wid,s)     AG_SetStyle((wid), "selection-color#hover", (s))
 
 /*
  * Inlinables
@@ -461,6 +488,7 @@ void ag_expand_horiz(void *_Nonnull);
 void ag_expand_vert(void *_Nonnull);
 void ag_widget_update(void *_Nonnull);
 void ag_push_clip_rect(void *_Nonnull, const AG_Rect *_Nonnull);
+void ag_push_clip_rect_inner(void *_Nonnull, const AG_Rect *_Nonnull);
 void ag_pop_clip_rect(void *_Nonnull);
 void ag_push_blending_mode(void *_Nonnull, AG_AlphaFn, AG_AlphaFn);
 void ag_pop_blending_mode(void *_Nonnull);
@@ -485,6 +513,7 @@ void ag_set_mod_state(void *_Nonnull, Uint);
 # define AG_ExpandVert(o)                    ag_expand_vert(o)
 # define AG_WidgetUpdate(o)                  ag_widget_update(o)
 # define AG_PushClipRect(o,r)                ag_push_clip_rect((o),(r))
+# define AG_PushClipRectInner(o,r)           ag_push_clip_rect_inner((o),(r))
 # define AG_PopClipRect(o)                   ag_pop_clip_rect(o)
 # define AG_PushBlendingMode(o,fs,fd)        ag_push_blending_mode((o),(fs),(fd))
 # define AG_PopBlendingMode(o)               ag_pop_blending_mode(o)

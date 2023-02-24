@@ -808,6 +808,8 @@ AG_SDL2_KeySymFromScancode(const SDL_Scancode scancode)
 	case SDL_SCANCODE_RALT:			return AG_KEY_RALT;
 	case SDL_SCANCODE_RGUI:			return AG_KEY_RGUI;
 	case SDL_SCANCODE_MODE:			return AG_KEY_MODE;
+	default:
+						break;
 	}
 	return (AG_KEY_LAST);
 }
@@ -1145,7 +1147,6 @@ AG_SDL2_TranslateEvent(void *obj, const SDL_Event *ev, AG_DriverEvent *dev)
 		dev->ctrlSensor.instanceID = (int)ev->csensor.which;
 		dev->ctrlSensor.sensor = (int)ev->csensor.sensor;
 		memcpy(&dev->ctrlSensor.data, &ev->csensor.data, sizeof(float)*3);
-		dev->ctrlSensor.timestamp_us = ev->csensor.timestamp_us;
 		break;
 	case SDL_JOYAXISMOTION:
 		dev->type = AG_DRIVER_JOY_AXIS_MOTION;

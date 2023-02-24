@@ -34,8 +34,9 @@ const char *agStyleDefault_Data =
 	" * }\n"
 	" */\n"
 	"AG_Console {\n"
-	"font-family: Monoalgue;\n"
+	"font-family: monoalgue;\n"
 	"padding: 4;\n"
+	"spacing: 3;\n"
 	"background-color: rgb(0,0,0);\n"
 	"background-color#hover: rgb(0,0,30);\n"
 	"background-color#focused: rgb(5,5,5);\n"
@@ -103,11 +104,11 @@ const char *agStyleDefault_Data =
 	"line-color#hover: rgb(200,200,180);\n"
 	"}\n"
 	"AG_Separator {\n"
-	"padding: 4;\n"
+	"line-color: #888;\n"
+	"padding: 8 10 8 10;\n"
 	"}\n"
 	"AG_Statusbar {\n"
-	"font-family: cm-serif;\n"
-	"font-style: upright-italic;\n"
+	"font-family: charter;\n"
 	"padding: 2;\n"
 	"spacing: 1;\n"
 	"}\n"
@@ -123,7 +124,7 @@ const char *agStyleDefault_Data =
 
 AG_StaticCSS agStyleDefault = {
 	"agStyleDefault",
-	2219,
+	2228,
 	&agStyleDefault_Data,
 	NULL
 };

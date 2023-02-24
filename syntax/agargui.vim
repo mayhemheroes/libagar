@@ -24,8 +24,10 @@ if !exists("c_no_agar_gui") || exists("c_agar_gui_typedefs")
   syn keyword cConstant AG_BUTTON_NO_FOCUS AG_BUTTON_STICKY AG_BUTTON_PRESSING
   syn keyword cConstant AG_BUTTON_REPEAT AG_BUTTON_HFILL AG_BUTTON_VFILL
   syn keyword cConstant AG_BUTTON_INVERTED AG_BUTTON_KEYDOWN AG_BUTTON_EXCL
-  syn keyword cConstant AG_BUTTON_NOEXCL AG_BUTTON_SET AG_BUTTON_SLOW
-  syn keyword cConstant AG_BUTTON_EXPAND
+  syn keyword cConstant AG_BUTTON_NOEXCL AG_BUTTON_SET AG_BUTTON_EXPAND
+  syn keyword cConstant AG_BUTTON_ALIGN_CENTER AG_BUTTON_ALIGN_LEFT
+  syn keyword cConstant AG_BUTTON_ALIGN_RIGHT AG_BUTTON_VALIGN_TOP
+  syn keyword cConstant AG_BUTTON_VALIGN_MIDDLE AG_BUTTON_VALIGN_BOTTOM
   " gui/checkbox.h
   syn keyword cType AG_Checkbox
   syn keyword cConstant AG_CHECKBOX_HFILL AG_CHECKBOX_VFILL AG_CHECKBOX_SET
@@ -186,7 +188,7 @@ if !exists("c_no_agar_gui") || exists("c_agar_gui_typedefs")
   syn keyword cConstant AG_FIXED_PLOTTER_XAXIS AG_FIXED_PLOTTER_HFILL
   syn keyword cConstant AG_FIXED_PLOTTER_VFILL AG_FIXED_PLOTTER_EXPAND
   " gui/font_selector.h
-  syn keyword cType AG_FontSelector
+  syn keyword cType AG_FontSelector AG_FontSelectorPreviewFn
   syn keyword cConstant AG_FONTSELECTOR_UPDATE AG_FONTSELECTOR_ALT_PHRASE
   syn keyword cConstant AG_FONTSELECTOR_SW_STYLES AG_FONTSELECTOR_OBLIQUE_STYLES
   syn keyword cConstant AG_FONTSELECTOR_HFILL AG_FONTSELECTOR_VFILL
@@ -608,12 +610,10 @@ if !exists("c_no_agar_gui") || exists("c_agar_gui_typedefs")
   syn keyword cConstant AG_FONT_THIN AG_FONT_EXTRALIGHT AG_FONT_LIGHT 
   syn keyword cConstant AG_FONT_REGULAR AG_FONT_SEMIBOLD AG_FONT_BOLD
   syn keyword cConstant AG_FONT_EXTRABOLD AG_FONT_BLACK
-  syn keyword cConstant AG_FONT_OBLIQUE AG_FONT_ITALIC AG_FONT_UPRIGHT_ITALIC
-  syn keyword cConstant AG_FONT_MONOSPACE
+  syn keyword cConstant AG_FONT_OBLIQUE AG_FONT_ITALIC
   syn keyword cConstant AG_FONT_ULTRACONDENSED AG_FONT_CONDENSED AG_FONT_SEMICONDENSED 
   syn keyword cConstant AG_FONT_SEMIEXPANDED AG_FONT_EXPANDED AG_FONT_ULTRAEXPANDED
-  syn keyword cConstant AG_FONT_WEIGHTS AG_FONT_STYLES AG_FONT_FAMILY_PREFS
-  syn keyword cConstant AG_FONT_WD_VARIANTS
+  syn keyword cConstant AG_FONT_WEIGHTS AG_FONT_STYLES AG_FONT_WD_VARIANTS
   " gui/text_cache.h
   syn keyword cType AG_TextCache AG_CachedText AG_TextCacheBucket
   " gui/textbox.h
@@ -671,6 +671,7 @@ if !exists("c_no_agar_gui") || exists("c_agar_gui_typedefs")
   syn keyword cType AG_Unit
   " gui/widget.h
   syn keyword cType AG_SizeReq AG_SizeAlloc AG_WidgetClass AG_SizeSpec AG_FlagDescr
+  syn keyword cType AG_FlagDescrRO
   syn keyword cType AG_ActionType AG_Action AG_ActionVec AG_ActionEventType
   syn keyword cType AG_ActionTie AG_RedrawTie AG_CursorArea AG_CursorAreaQ
   syn keyword cType AG_WidgetPalette AG_WidgetGL AG_WidgetPvt AG_Widget AG_WidgetVec

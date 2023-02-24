@@ -27,9 +27,9 @@ TestGUI(void *obj, AG_Window *win)
 	 * container will cover the entire window.
 	 */
 	fx = AG_FixedNew(win, AG_FIXED_EXPAND);
-	AG_SetStyle(fx, "font-family", "fraktur");
-	AG_SetStyle(fx, "font-size", "120%");
-	AG_SetStyle(fx, "text-color", "#eee");
+	AG_SetFontFamily(fx, "fraktur");
+	AG_SetFontSize(fx, "120%");
+	AG_SetTextColor(fx, "#eee");
 
 	/* Create some background pixmap from an image file. */
 	if (!AG_ConfigFind(AG_CONFIG_PATH_DATA, "menubg.bmp", path, sizeof(path))) {
@@ -46,7 +46,8 @@ TestGUI(void *obj, AG_Window *win)
 	lb1 = AG_LabelNew(NULL, 0, "I'm at 20,32\n"
 	                           "(in " AGSI_YEL "%s" AGSI_RST ")\n",
 	                           AGOBJECT(fx)->name);
-	AG_SetStyle(lb1, "font-family", "vera-mono");
+	AG_SetFontFamily(lb1, "monoalgue");
+	AG_SetFontSize(lb1, "12pt");
 	AG_FixedPut(fx, lb1, 20, 32);
 	AG_FixedSize(fx, lb1, 180, 64);
 
@@ -55,20 +56,24 @@ TestGUI(void *obj, AG_Window *win)
 	 * be packed normally.
 	 */
 	box = AG_BoxNewVert(NULL, 0);
-	AG_SetStyle(box, "font-family", "vera");
-	AG_SetStyle(box, "font-size", "80%");
-	AG_SetStyle(box, "font-style", "italic");
+	AG_SetFontFamily(box, "charter");
+	AG_SetFontWeight(box, "Bold");
+	AG_SetFontStyle(box, "Italic");
 	{
 		AG_Box *hBox;
 		AG_Button *btnNum;
+		AG_Label *lbl;
 		int i;
 
-		AG_LabelNewS(box, 0, "I'm in a normal box");
+		lbl = AG_LabelNewS(box, 0, "I'm in a normal box!\n"
+		                           "Fixed at 12pt");
+		AG_SetFontSize(lbl, "12pt");
+
 		hBox = AG_BoxNewHoriz(box, AG_BOX_HFILL | AG_BOX_HOMOGENOUS);
-		for (i = 0; i < 5; i++) {
-			btnNum = AG_ButtonNew(hBox, 0, "%c", '1'+i);
-			AG_SetStyle(btnNum, "padding", "5");
-			AG_SetStyle(btnNum, "color", "#233");
+		for (i = 0; i < 6; i++) {
+			btnNum = AG_ButtonNew(hBox, 0, "%c\n", '1'+i);
+			AG_SetColor(btnNum, "rgba(34,51,51,127)");
+			AG_SetFontSize(btnNum, "18pt");
 		}
 	}
 	AG_FixedPut(fx, box, 450, 35);
@@ -87,9 +92,10 @@ TestGUI(void *obj, AG_Window *win)
 	AG_FixedMove(fx, btn[3], 204+192, 48);
 	for (i = 0; i < 4; i++) {
 		AG_FixedSize(fx, btn[i], 32, 32);
-		AG_SetStyle(btn[i], "color", "black");
-		AG_SetStyle(btn[i], "high-color", "#775");
-		AG_SetStyle(btn[i], "low-color", "#333");
+		AG_SetColor(btn[i], "rgba(0,0,0,127)");
+		AG_SetHighColor(btn[i], "#775");
+		AG_SetLowColor(btn[i], "#333");
+		AG_SetFontSize(btn[i], "16pt");
 	}
 
 	/*
@@ -99,7 +105,7 @@ TestGUI(void *obj, AG_Window *win)
 	win->flags |= AG_WINDOW_NORESIZE;
 
 	/* Disable padding around borders. */
-	AG_SetStyle(win, "padding", "0");
+	AG_SetPadding(win, "0");
 
 	/* Request an explicit size in pixels. */
 	AG_WindowSetGeometryAligned(win, AG_WINDOW_MC, 642, 200);
@@ -108,6 +114,7 @@ TestGUI(void *obj, AG_Window *win)
 }
 
 const AG_TestCase fixedresTest = {
+	AGSI_IDEOGRAM AGSI_FIXED_LAYOUT AGSI_RST,
 	"fixedres",
 	N_("Test the AG_Fixed(3) container widget"),
 	"1.6.0",
