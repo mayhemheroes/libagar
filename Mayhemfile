@@ -1,5 +1,0 @@
-project: libagar
-target: agar-disasm
-
-cmds:
-  - cmd: /install/bin/agar-disasm @@
