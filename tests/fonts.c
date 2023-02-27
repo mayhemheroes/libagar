@@ -2,23 +2,20 @@
 
 #include "agartest.h"
 
-static AG_Font *myFont;
+static AG_Font *myFont = NULL;
 
 static void
 SelectedFont(AG_Event *event)
 {
-/*	AG_Window *win = AG_WINDOW_PTR(1); */
+	if (myFont == NULL) {
+		return;
+	}
+	AG_SetDefaultFont(myFont);
 
-	if (myFont) {
-		AG_SetDefaultFont(myFont);
-		AG_SetString(agConfig, "font.face", AGOBJECT(agDefaultFont)->name);
-		AG_SetInt(agConfig, "font.size", agDefaultFont->spec.size);
-		AG_SetUint(agConfig, "font.flags", agDefaultFont->flags);
-		if (AG_ConfigSave() == 0) {
-			AG_TextTmsg(AG_MSG_INFO, 1000, "Default font has changed.");
-		} else {
-			AG_TextMsgFromError();
-		}
+	if (AG_ConfigSave() == 0) {
+		AG_TextTmsg(AG_MSG_INFO, 1000, "Default font has changed.");
+	} else {
+		AG_TextMsgFromError();
 	}
 }
 
@@ -36,40 +33,29 @@ TestGUI(void *obj, AG_Window *win)
 	TestMsg(obj,
 	    "Al-arabiyyah: "
 	    AGSI_UNI
-	    "\xD9\x8F\xD8\xA9\xD9\x91\xD9\x8E"
-	    "\xD9\x8A\xD9\x90\xD8\xA8\xD9\x8E"
-	    "\xD8\xB1\xD9\x8E\xD8\xB9\xD9\x92"
-	    "\xD9\x84\xD9\x8E\xD8\xA7"
+	    "\xD9\x8F" "\xD8\xA9" "\xD9\x91" "\xD9\x8E" "\xD9\x8A" "\xD9\x90"
+	    "\xD8\xA8" "\xD9\x8E" "\xD8\xB1" "\xD9\x8E" "\xD8\xB9" "\xD9\x92"
+	    "\xD9\x84" "\xD9\x8E" "\xD8\xA7"
 	    AGSI_RST);
 
 	TestMsg(obj,
 	    "Devanagari: "
 	    AGSI_UNI
-	    "\xE0\xA4\xA6 " /* U+0926 DA */
-	    "\xE0\xA4\xB5 " /* U+0926 VA */
-	    "\xE0\xA4\xA8 " /* U+0928 NA */
-	    "\xE0\xA4\x97 " /* U+0917 GA */
-	    "\xE0\xA4\xB0 " /* U+0917 RA */
+	    "\xE0\xA4\xA6" "\xE0\xA4\xB5" "\xE0\xA4\xA8" "\xE0\xA4\x97"
+	    "\xE0\xA4\xB0"
 	    AGSI_RST);
 
 	TestMsg(obj,
 	    "Ellinik\xC3\xA1: "
 	    AGSI_UNI
-	    "\xCE\xB5"
-	    "\xCE\xBB"
-	    "\xCE\xBB"
-	    "\xCE\xB7"
-	    "\xCE\xBD"
-	    "\xCE\xB9"
-	    "\xCE\xBA"
-	    "\xCE\xAC"
+	    "\xCE\xB5" "\xCE\xBB" "\xCE\xBB" "\xCE\xB7" "\xCE\xBD" "\xCE\xB9"
+	    "\xCE\xBA" "\xCE\xAC"
 	    AGSI_RST);
 
 	TestMsg(obj,
 	    "Gu\xC4\x81nhu\xC3\xA0: "
 	    AGSI_CJK
-	    "\xE5\xAE\x98" /* U+5b98 */
-	    "\xE8\xAF\x9D" /* U+8bdd */
+	    "\xE5\xAE\x98" "\xE8\xAF\x9D"
 	    AGSI_RST);
 
 	TestMsg(obj,
@@ -174,9 +160,29 @@ TestGUI(void *obj, AG_Window *win)
 	TestMsg(obj, "");
 
 	for (i = 0; i <= 10; i++) {
+		if (i == 3) {                             /* Agar Ideograms */
+			TestMsg(obj,
+			    "Core Font #4 (AGSI_FONT4): "
+			    AGSI_IDEOGRAM AGSI_AGAR_AG AGSI_AGAR_AR AGSI_RST
+			    " ideograms ("
+			    AGSI_IDEOGRAM AGSI_PARCEL AGSI_ARTISTS_PALETTE
+			    AGSI_VACUUM_TUBE AGSI_ALICE AGSI_BOB AGSI_RST ")");
+		} else if (i == 6 || i == 7) {
+			TestMsg(obj,
+			    "Core Font #%d (AGSI_FONT%d): \x1b[%dm%s (%s)\x1b[0m",
+			    i+1, i+1, 10+i,
+			    "\xE6\x97\xA5" "\xE6\x9C\xAC" "\xE8\xAA\x9E",
+			    agCoreFonts[i]);
+		} else {
+			TestMsg(obj,
+			    "Core Font #%d (AGSI_FONT%d): \x1b[%dm%s\x1b[0m",
+			    i+1, i+1, 10+i, agCoreFonts[i]);
+		}
+	}
+	for (i = 11; i <= 16; i++) {
 		TestMsg(obj,
 		    "Core Font #%d (AGSI_FONT%d): \x1b[%dm%s\x1b[0m",
-		    i+1, i+1, 10+i, agCoreFonts[i]);
+		    i+1, i+1, 66+(i - 11), agCoreFonts[i]);
 	}
 	TestMsg(obj, "");
 
@@ -185,7 +191,7 @@ TestGUI(void *obj, AG_Window *win)
 
 	box = AG_BoxNewHoriz(win, AG_BOX_HFILL | AG_BOX_HOMOGENOUS);
 	{
-		AG_ButtonNewFn(box, 0, _("Set as Default Font"), SelectedFont, "%p", win);
+		AG_ButtonNewFn(box, 0, _("Set as Default Font"), SelectedFont,NULL);
 		AG_ButtonNewFn(box, 0, _("Cancel"), AGWINCLOSE(win));
 	}
 	return (0);
@@ -308,6 +314,7 @@ Bench(void *obj)
 #endif
 
 const AG_TestCase fontsTest = {
+	AGSI_IDEOGRAM AGSI_TYPOGRAPHY AGSI_RST,
 	"fonts",
 	N_("Test font engine and AG_FontSelector(3)"),
 	"1.6.0",

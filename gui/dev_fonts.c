@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,28 +43,28 @@ PollFonts(AG_Event *_Nonnull event)
 	};
 	AG_Table *tbl = AG_TABLE_SELF();
 	AG_Font *font;
+	const Uint32 t = AG_GetTicks();
 
 	AG_TableBegin(tbl);
 	AG_MutexLock(&agTextLock);
 	TAILQ_FOREACH(font, &agFontCache, fonts) {
 		char metrics[64];
-		char fl[64];
+		char style[64];
 
-		Snprintf(metrics, sizeof(metrics), "H=%d A=%d D=%d Ls=%d",
-		    font->height, font->ascent, font->descent, font->lineskip);
+		Snprintf(metrics, sizeof(metrics),
+		    "h(" AGSI_BOLD "%d" AGSI_RST ") "
+		    AGSI_UP_ARROW "(" AGSI_BOLD "%d" AGSI_RST ") "
+		    AGSI_DN_ARROW "(" AGSI_BOLD "%d" AGSI_RST ")",
+		    font->height, font->ascent, font->descent);
 
-		fl[0] = '\0';
-		if (font->flags & AG_FONT_CONDENSED) { Strlcat(fl, "Condensed ", sizeof(fl)); }
-		if (font->flags & AG_FONT_MONOSPACE) { Strlcat(fl, "Mono ", sizeof(fl)); }
-		if (font->flags & AG_FONT_BOLD) { Strlcat(fl, "Bold ", sizeof(fl)); }
-		if (font->flags & AG_FONT_ITALIC) { Strlcat(fl, "Italic ", sizeof(fl)); }
+		AG_FontGetStyleName(style, sizeof(style), font->flags);
 
-		AG_TableAddRow(tbl, "%s:%s:%f:%s:%u:%s",
+		AG_TableAddRow(tbl, "%s:%s:%.1f:%s:%.1f:%s",
 		    OBJECT(font)->name,
 		    fontTypeNames[font->spec.type],
 		    font->spec.size,
-		    fl,
-		    font->nRefs,
+		    style,
+		    (float)((t - font->tAccess) / 1000.0f),
 		    metrics);
 	}
 	AG_MutexUnlock(&agTextLock);
@@ -84,13 +84,13 @@ AG_DEV_FontInfo(void)
 	AG_WindowSetPosition(win, AG_WINDOW_BL, 0);
 
 	tbl = AG_TableNewPolled(win, AG_TABLE_EXPAND, PollFonts, NULL);
-	AG_TableAddCol(tbl, _("Name"),       "<XXXXXXXXXXXXXXX>", NULL);
-	AG_TableAddCol(tbl, _("Class"),      "<XXXXX>",         NULL);
-	AG_TableAddCol(tbl, _("Size"),       "<XXXXXXXXXX>",    NULL);
-	AG_TableAddCol(tbl, _("Flags"),      "<XXXXXX>",       NULL);
-	AG_TableAddCol(tbl, _("References"), "<XXXX>",           NULL);
-	AG_TableAddCol(tbl, _("Metrics"),    NULL,                NULL);
-	AG_TableSizeHint(tbl, 600, 20);
+	AG_TableAddCol(tbl, _("Name"),    "<XXXXXXXXXXXXXXX>",   NULL);
+	AG_TableAddCol(tbl, _("Class"),   "<XXXXX>",             NULL);
+	AG_TableAddCol(tbl, _("Size"),    "<XXXXXXXXXX>",        NULL);
+	AG_TableAddCol(tbl, _("Style"),   "<XXXXXX>",            NULL);
+	AG_TableAddCol(tbl, _("Time"),    "<XXXXXXX>",           NULL);
+	AG_TableAddCol(tbl, _("Metrics"), NULL,                  NULL);
+	AG_TableSizeHint(tbl, 700, 30);
 
 	AG_WindowShow(win);
 	return (win);

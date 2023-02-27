@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2022 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2005-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -247,13 +247,15 @@ OnDirectoryEvent(AG_EventSink *_Nonnull es, AG_Event *_Nonnull event)
 static void
 RefreshListing(AG_FileDlg *_Nonnull fd)
 {
+	AG_Tlist *tlDirs = fd->tlDirs;
+	AG_Tlist *tlFiles = fd->tlFiles;
 	AG_TlistItem *it;
 	AG_FileInfo info;
 	AG_Dir *dir;
 	char **dirs, **files;
 	Uint i, nDirs=0, nFiles=0;
 
-	if (fd->tlDirs == NULL /* || fd->tlFiles == NULL */) {
+	if (tlDirs == NULL /* || tlFiles == NULL */) {
 		return;
 	}
 	if (fd->openDir != NULL) {
@@ -282,8 +284,8 @@ RefreshListing(AG_FileDlg *_Nonnull fd)
 	dirs = Malloc(sizeof(char *));
 	files = Malloc(sizeof(char *));
 	
-	AG_ObjectLock(fd->tlDirs);
-	AG_ObjectLock(fd->tlFiles);
+	AG_ObjectLock(tlDirs);
+	AG_ObjectLock(tlFiles);
 
 	for (i = 0; i < dir->nents; i++) {
 		char *ent = dir->ents[i];
@@ -318,16 +320,17 @@ RefreshListing(AG_FileDlg *_Nonnull fd)
 			    FilterByExtension(fd, ent)) {
 				continue;
 			}
-			files = Realloc(files, (nFiles+1)*sizeof(char *));
+			files = Realloc(files, (nFiles + 1) * sizeof(char *));
 			entLen = strlen(ent);
-			s = files[nFiles] = Malloc(entLen+2);
+			s = files[nFiles] = Malloc(entLen + 2);
 			memcpy(s, ent, entLen);
 
-			/* Tack on a character to remember the perm mode. */
 			if (info.perms & AG_FILE_EXECUTABLE) {
 				s[entLen] = 'x';
 			} else if ((info.perms & AG_FILE_READABLE) == 0) {
 				s[entLen] = 'R';
+			} else if (ent[0] == '.') {
+				s[entLen] = 'r';
 			} else {
 				s[entLen] = '?';
 			}
@@ -335,15 +338,17 @@ RefreshListing(AG_FileDlg *_Nonnull fd)
 			nFiles++;
 		}
 	}
+
 	qsort(dirs, nDirs, sizeof(char *), AG_FilenameCompare);
 	qsort(files, nFiles, sizeof(char *), AG_FilenameCompare);
 
-	AG_TlistClear(fd->tlDirs);
-	AG_TlistClear(fd->tlFiles);
+	AG_TlistClear(tlDirs);
+	AG_TlistClear(tlFiles);
+
 	for (i = 0; i < nDirs; i++) {
 		char *s = dirs[i];
 
-		it = AG_TlistAddS(fd->tlDirs, agIconDirectory.s, s);
+		it = AG_TlistAddS(tlDirs, agIconDirectory.s, s);
 		it->cat = "dir";
 		it->p1 = it;
 		free(s);
@@ -353,15 +358,18 @@ RefreshListing(AG_FileDlg *_Nonnull fd)
 		char *pAttr = &s[strlen(s)-1], attr = *pAttr;
 
 		*pAttr = '\0';
-		it = AG_TlistAddS(fd->tlFiles, agIconDoc.s, s);
+		it = AG_TlistAddS(tlFiles, agIconDoc.s, s);
 		it->cat = "file";
 		it->p1 = it;
 		switch (attr) {
 		case 'x':
-			it->fontFlags |= AG_FONT_BOLD;
+			/* Display executables in bold. */
+			AG_TlistSetFont(tlFiles, it, NULL, 1.0f, AG_FONT_BOLD);
 			break;
 		case 'R':
-			it->fontFlags |= AG_FONT_ITALIC;
+		case 'r':
+			/* Display unreadable and normally hidden files in italic. */
+			AG_TlistSetFont(tlFiles, it, NULL, 1.0f, AG_FONT_ITALIC);
 			break;
 		}
 		free(s);
@@ -369,13 +377,13 @@ RefreshListing(AG_FileDlg *_Nonnull fd)
 
 	free(dirs);
 	free(files);
-	AG_TlistRestore(fd->tlDirs);
-	AG_TlistRestore(fd->tlFiles);
+	AG_TlistRestore(tlDirs);
+	AG_TlistRestore(tlFiles);
 
-	AG_TlistScrollToStart(fd->tlFiles);
+	AG_TlistScrollToStart(tlFiles);
 	
-	AG_ObjectUnlock(fd->tlFiles);
-	AG_ObjectUnlock(fd->tlDirs);
+	AG_ObjectUnlock(tlFiles);
+	AG_ObjectUnlock(tlDirs);
 }
 
 void
@@ -458,8 +466,7 @@ LocExpanded(AG_Event *_Nonnull event)
 			path[3] = '\0';
 			ti = AG_TlistAddS(tl, agIconDirectory.s, path);
 
-			if (init &&
-			    toupper(fd->cwd[0]) == path[0] &&
+			if (toupper(fd->cwd[0]) == path[0] &&
 			    fd->cwd[1] == ':') {
 				AG_ComboSelect(comLoc, ti);
 			}
@@ -1048,7 +1055,7 @@ AG_FileDlgSelectType(AG_FileDlg *fd, AG_FileType *ft)
 			break;
 		}
 	}
-	AG_SetStyle(fd->optsCtr, "font-size", "90%");
+	AG_SetFontSize(fd->optsCtr, "90%");
 
 	WIDGET(fd)->flags |= AG_WIDGET_UPDATE_WINDOW;
 	AG_Redraw(fd);
@@ -1403,10 +1410,10 @@ AG_FileDlgNew(void *parent, Uint flags)
 		AG_TextboxSizeHint(fd->textbox, "<XXXXXXXXXXXXXXXXXXXXXXXXXXXXX>");
 
 		fd->btnExpand = AG_ButtonNewS(fd, AG_BUTTON_NO_FOCUS, "...");
-		AG_SetStyle(fd->btnExpand, "padding", "1");
+		AG_SetPadding(fd->btnExpand, "1");
 
 		AG_SetEvent(fd->btnExpand, "button-pushed",
-		    CompactExpand, "%p", fd);
+		    CompactExpand,"%p",fd);
 
 		AG_ObjectAttach(parent, fd);
 		return (fd);
@@ -1459,13 +1466,13 @@ AG_FileDlgNew(void *parent, Uint flags)
 		    _("Mask files by extension"),
 		    &fd->flags, AG_FILEDLG_MASK_EXT);
 		AG_SetEvent(cb, "checkbox-changed", MaskOptionSelected,"%p",fd);
-		AG_SetStyle(cb, "font-size", "80%");
+		AG_SetFontSize(cb, "80%");
 	
 		fd->cbMaskHidden = cb = AG_CheckboxNewFlag(fd, AG_CHECKBOX_EXCL,
 		    _("Mask hidden files"),
 		    &fd->flags, AG_FILEDLG_MASK_HIDDEN);
 		AG_SetEvent(cb, "checkbox-changed", MaskOptionSelected,"%p",fd);
-		AG_SetStyle(cb, "font-size", "80%");
+		AG_SetFontSize(cb, "80%");
 	}
 
 	if (!(flags & AG_FILEDLG_NOBUTTONS)) {
@@ -2133,7 +2140,15 @@ AG_WidgetClass agFileDlgClass = {
 	},
 	Draw,
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	NULL,			/* mouse_button_down */
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	NULL,			/* key_down */
+	NULL,			/* key_up */
+	NULL,			/* touch */
+	NULL,			/* ctrl */
+	NULL			/* joy */
 };
 
 #endif /* AG_WIDGETS */

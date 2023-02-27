@@ -595,7 +595,6 @@ else
 	disable(xinerama)
 	disable(cocoa)
 	disable(opengl)
-	disable(glu)
 	disable(glx)
 	disable(wgl)
 	disable(freetype)
@@ -903,12 +902,11 @@ fi
 # SG: Enable the SG library (needs MATH, GUI).
 #
 if [ "${enable_sg}" != 'no' -a "${enable_gui}" != 'no' \
-  -a "${enable_math}" != 'no' -a "${enable_threads}" != 'no' \
-  -a "${HAVE_OPENGL}" = 'yes' ]; then
+  -a "${enable_math}" != 'no' -a "${HAVE_OPENGL}" = 'yes' ]; then
 	hdefine(ENABLE_SG, "yes")
 	mdefine(SUBDIR_sg, "sg")
 
-	# Enable GLU if a GLU library is found.
+	# Enable GLU if found (used by the SG_Image(3) object class).
 	if [ "${with_glu}" != 'no' ]; then
 		check(glu, 0, ${prefix_glu})
 		if [ "${HAVE_GLU}" = 'yes' ]; then
@@ -1002,6 +1000,9 @@ fi
 # GUI: Conditionally compiled sources in Agar-GUI.
 #
 mdefine(SRCS_GUI, "")
+if [ "${HAVE_FREETYPE}" = 'yes' ]; then
+	mappend(SRCS_GUI, "font_ft.c")
+fi
 if [ "${HAVE_SDL}" = 'yes' ]; then
 	mappend(SRCS_GUI, "drv_sdl_common.c drv_sdlfb.c")
 	if [ "${HAVE_OPENGL}" = 'yes' ]; then

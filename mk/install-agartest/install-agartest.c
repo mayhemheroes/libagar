@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2020-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,7 @@ char *dstArch = "x86";
 const char *dataFiles[] = {
 	"agartest.exe",
 	"agar.png",
+	"agar64.png",
 	"agar-index.png",
 	"agar.bmp",
 	"agar-1.bmp",
@@ -71,23 +72,39 @@ const char *dataFiles[] = {
 	"loss.txt",
 	"menubg.bmp",
 	"pepe.jpg",
-	"sq-agar.bmp",
-	"sq-agar.png",
 	"sword.bmp",
 	"sword-socket.bmp",
+	"sq-agar.bmp",
+	"sq-agar.png",
 	SRC_GUI "license.txt:license.txt",
-	SRC_FONTS "cm-sans.ttf:cm-sans.ttf",
-	SRC_FONTS "courier-prime-bold-italic.ttf:courier-prime-bold-italic.ttf",
-	SRC_FONTS "courier-prime-bold.ttf:courier-prime-bold.ttf",
-	SRC_FONTS "courier-prime-italic.ttf:courier-prime-italic.ttf",
-	SRC_FONTS "courier-prime.ttf:courier-prime.ttf",
+	SRC_FONTS "agar-minimal-12.png:agar-minimal-12.png",
+	SRC_FONTS "agar-minimal.agbf:agar-minimal.agbf",
+	SRC_FONTS "agar-ideograms-12.png:agar-ideograms-12.png",
+	SRC_FONTS "agar-ideograms.agbf:agar-ideograms.agbf",
+	SRC_FONTS "algue.ttf:algue.ttf",
+	SRC_FONTS "algue-bold-italic.ttf:algue-bold-italic.ttf",
+	SRC_FONTS "algue-bold.ttf:algue-bold.ttf",
+	SRC_FONTS "algue-italic.ttf:algue-italic.ttf",
+	SRC_FONTS "charter-bold-italic.otf:charter-bold-italic.otf",
+	SRC_FONTS "charter-bold.otf:charter-bold.otf",
+	SRC_FONTS "charter-italic.otf:charter-italic.otf",
+	SRC_FONTS "charter.otf:charter.otf",
 	SRC_FONTS "fraktur.ttf:fraktur.ttf",
+	SRC_FONTS "league-gothic-condensed-italic.otf:league-gothic-condensed-italic.otf",
 	SRC_FONTS "league-gothic-condensed.otf:league-gothic-condensed.otf",
 	SRC_FONTS "league-gothic.otf:league-gothic.otf",
 	SRC_FONTS "league-spartan.otf:league-spartan.otf",
-	SRC_FONTS "source-han-sans.otf:source-han-sans.otf",
+	SRC_FONTS "league-spartan-black.otf:league-spartan-black.otf",
+	SRC_FONTS "league-spartan-bold.otf:league-spartan-bold.otf",
+	SRC_FONTS "league-spartan-extrabold.otf:league-spartan-extrabold.otf",
+	SRC_FONTS "league-spartan-extralight.otf:league-spartan-extralight.otf",
+	SRC_FONTS "league-spartan-light.otf:league-spartan-light.otf",
+	SRC_FONTS "league-spartan-semibold.otf:league-spartan-semibold.otf",
+	SRC_FONTS "monoalgue.ttf:monoalgue.ttf",
+	SRC_FONTS "monoalgue-bold-italic.ttf:monoalgue-bold-italic.ttf",
+	SRC_FONTS "monoalgue-bold.ttf:monoalgue-bold.ttf",
+	SRC_FONTS "monoalgue-italic.ttf:monoalgue-italic.ttf",
 	SRC_FONTS "unialgue.ttf:unialgue.ttf",
-	SRC_FONTS "vera-mono.ttf:vera-mono.ttf",
 	NULL
 };
 

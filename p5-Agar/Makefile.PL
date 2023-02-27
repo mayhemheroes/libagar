@@ -10,7 +10,7 @@ require 5.6.0;
 my $agar_version = `agar-config --version`;
 if ($? != 0) {
 	die 'Agar is not installed (agar-config not found). ' .
-	    'Get it from: http://libagar.org/';
+	    'Get it from: https://libagar.org/';
 }
 chomp($agar_version);
 if ($agar_version =~ /^(\d{1,2})\.(\d{1,2})\.(\d{1,2})$/) {
@@ -36,9 +36,17 @@ my %Makefile = (
 	'LIBS'		=> $agar_libs,
 	'DEFINE'	=> ' ',
 	'INC'		=> $agar_cflags.' -g',
+#	'CC'            => 'gcc12',
 	'CCFLAGS'	=> ''.
 	                   '-Wall -Wno-unused -Werror',
 	'OBJECT'	=> q/$(O_FILES)/,
         $CAPI ? ('CAPI' => 'TRUE') : (),
 );
 WriteMakefile(%Makefile);
+
+print STDERR "*\n";
+print STDERR "* NOTE: If you are getting compilation errors with clang,\n";
+print STDERR "* you may want to try again using gcc as there have been\n";
+print STDERR "* some issues with perl and clang12+.\n";
+print STDERR "*\n";
+

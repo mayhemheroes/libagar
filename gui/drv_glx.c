@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2022 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2009-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -339,6 +339,7 @@ static int
 GLX_GetDisplaySize(Uint *_Nonnull w, Uint *_Nonnull h)
 {
 	AG_MutexLock(&agDisplayLock);
+
 #ifdef HAVE_XINERAMA
 	{
 		int event, error, nScreens;
@@ -349,13 +350,15 @@ GLX_GetDisplaySize(Uint *_Nonnull w, Uint *_Nonnull h)
 			*w = (Uint)xs[0].width;
 			*h = (Uint)xs[0].height;
 			XFree(xs);
-			goto out;
+			AG_MutexUnlock(&agDisplayLock);
+			return (0);
 		}
 	}
 #endif /* HAVE_XINERAMA */
+
 	*w = (Uint)DisplayWidth(agDisplay, agScreen);
 	*h = (Uint)DisplayHeight(agDisplay, agScreen);
-out:
+
 	AG_MutexUnlock(&agDisplayLock);
 	return (0);
 }
@@ -581,10 +584,11 @@ static int
 GLX_GetNextEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 {
 	XEvent xev;
-	int x, y;
-	AG_KeySym ks;
 	AG_Window *win;
+	AG_Mouse *ms;
+	AG_KeySym ks;
 	AG_Char ch;
+	int x, y;
 
 	AG_MutexLock(&agDisplayLock);
 	XNextEvent(agDisplay, &xev);
@@ -600,12 +604,17 @@ GLX_GetNextEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 #endif
 		x = AGDRIVER_BOUNDED_WIDTH(win, xev.xmotion.x);
 		y = AGDRIVER_BOUNDED_HEIGHT(win, xev.xmotion.y);
-		AG_MouseMotionUpdate(WIDGET(win)->drv->mouse, x,y);
+
+		ms = WIDGET(win)->drv->mouse;
+		ms->xRel = x - ms->x;
+		ms->yRel = y - ms->y;
+		ms->x = x;
+		ms->y = y;
 		
 		dev->type = AG_DRIVER_MOUSE_MOTION;
 		dev->win = win;
-		dev->data.motion.x = x;
-		dev->data.motion.y = y;
+		dev->motion.x = x;
+		dev->motion.y = y;
 		break;
 	case ButtonPress:
 		if ((win = LookupWindowByID(xev.xbutton.window)) == NULL) {
@@ -616,14 +625,15 @@ GLX_GetNextEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 #endif
 		x = AGDRIVER_BOUNDED_WIDTH(win, xev.xbutton.x);
 		y = AGDRIVER_BOUNDED_HEIGHT(win, xev.xbutton.y);
-		AG_MouseButtonUpdate(WIDGET(win)->drv->mouse,
-		    AG_BUTTON_PRESSED, xev.xbutton.button);
+
+		ms = WIDGET(win)->drv->mouse;
+		ms->btnState |= AG_MOUSE_BUTTON(xev.xbutton.button);
 
 		dev->type = AG_DRIVER_MOUSE_BUTTON_DOWN;
 		dev->win = win;
-		dev->data.button.which = (AG_MouseButton)xev.xbutton.button;
-		dev->data.button.x = xev.xbutton.x;
-		dev->data.button.y = xev.xbutton.y;
+		dev->button.which = (AG_MouseButton)xev.xbutton.button;
+		dev->button.x = xev.xbutton.x;
+		dev->button.y = xev.xbutton.y;
 		break;
 	case ButtonRelease:
 		if ((win = LookupWindowByID(xev.xbutton.window)) == NULL) {
@@ -634,14 +644,15 @@ GLX_GetNextEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 #endif
 		x = AGDRIVER_BOUNDED_WIDTH(win, xev.xbutton.x);
 		y = AGDRIVER_BOUNDED_HEIGHT(win, xev.xbutton.y);
-		AG_MouseButtonUpdate(WIDGET(win)->drv->mouse,
-		    AG_BUTTON_RELEASED, xev.xbutton.button);
+
+		ms = WIDGET(win)->drv->mouse,
+		ms->btnState &= ~(AG_MOUSE_BUTTON(xev.xbutton.button));
 
 		dev->type = AG_DRIVER_MOUSE_BUTTON_UP;
 		dev->win = win;
-		dev->data.button.which = (AG_MouseButton)xev.xbutton.button;
-		dev->data.button.x = xev.xbutton.x;
-		dev->data.button.y = xev.xbutton.y;
+		dev->button.which = (AG_MouseButton)xev.xbutton.button;
+		dev->button.x = xev.xbutton.x;
+		dev->button.y = xev.xbutton.y;
 		break;
 	case KeyRelease:
 		AG_MutexLock(&agDisplayLock);
@@ -681,8 +692,8 @@ GLX_GetNextEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 		dev->type = (xev.type == KeyPress) ? AG_DRIVER_KEY_DOWN :
 		                                     AG_DRIVER_KEY_UP;
 		dev->win = win;
-		dev->data.key.ks = ks;
-		dev->data.key.ucs = ch;
+		dev->key.ks = ks;
+		dev->key.ucs = ch;
 		break;
 	case EnterNotify:
 		if ((win = LookupWindowByID(xev.xcrossing.window)) == NULL) {
@@ -751,10 +762,10 @@ GLX_GetNextEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 #endif
 			dev->type = AG_DRIVER_VIDEORESIZE;
 			dev->win = win;
-			dev->data.videoresize.x = x;
-			dev->data.videoresize.y = y;
-			dev->data.videoresize.w = xev.xconfigure.width;
-			dev->data.videoresize.h = xev.xconfigure.height;
+			dev->videoresize.x = x;
+			dev->videoresize.y = y;
+			dev->videoresize.w = xev.xconfigure.width;
+			dev->videoresize.h = xev.xconfigure.height;
 			break;
 		} else {
 			return (-1);
@@ -891,29 +902,25 @@ GLX_ProcessEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 	}
 	switch (dev->type) {
 	case AG_DRIVER_MOUSE_MOTION:
-		AG_ProcessMouseMotion(win,
-		    dev->data.motion.x, dev->data.motion.y,
-		    drv->mouse->xRel, drv->mouse->yRel, drv->mouse->btnState);
-		AG_MouseCursorUpdate(win,
-		     dev->data.motion.x, dev->data.motion.y);
+		AG_ProcessMouseMotion(win, dev->motion.x, dev->motion.y,
+		    drv->mouse->xRel, drv->mouse->yRel);
+		AG_MouseCursorUpdate(win, dev->motion.x, dev->motion.y);
 		break;
 	case AG_DRIVER_MOUSE_BUTTON_DOWN:
-		AG_ProcessMouseButtonDown(win,
-		    dev->data.button.x, dev->data.button.y,
-		    dev->data.button.which);
+		AG_ProcessMouseButtonDown(win, dev->button.x, dev->button.y,
+		    dev->button.which);
 		break;
 	case AG_DRIVER_MOUSE_BUTTON_UP:
-		AG_ProcessMouseButtonUp(win,
-		    dev->data.button.x, dev->data.button.y,
-		    dev->data.button.which);
+		AG_ProcessMouseButtonUp(win, dev->button.x, dev->button.y,
+		    dev->button.which);
 		break;
 	case AG_DRIVER_KEY_UP:
-		AG_ProcessKey(drv->kbd, win, AG_KEY_RELEASED,
-		    dev->data.key.ks, dev->data.key.ucs);
+		AG_ProcessKey(drv->kbd, win, AG_KEY_RELEASED, dev->key.ks,
+		    dev->key.ucs);
 		break;
 	case AG_DRIVER_KEY_DOWN:
-		AG_ProcessKey(drv->kbd, win, AG_KEY_PRESSED,
-		    dev->data.key.ks, dev->data.key.ucs);
+		AG_ProcessKey(drv->kbd, win, AG_KEY_PRESSED, dev->key.ks,
+		    dev->key.ucs);
 		break;
 	case AG_DRIVER_MOUSE_ENTER:
 		AG_PostEvent(win, "window-enter", NULL);
@@ -939,10 +946,10 @@ GLX_ProcessEvent(void *_Nullable drvCaller, AG_DriverEvent *_Nonnull dev)
 
 			AG_MutexLock(&glx->lock);
 
-			a.x = dev->data.videoresize.x;
-			a.y = dev->data.videoresize.y;
-			a.w = dev->data.videoresize.w;
-			a.h = dev->data.videoresize.h;
+			a.x = dev->videoresize.x;
+			a.y = dev->videoresize.y;
+			a.w = dev->videoresize.w;
+			a.h = dev->videoresize.h;
 
 			if (a.w != WIDTH(win) || a.h != HEIGHT(win))
 				GLX_PostResizeCallback(win, &a);
@@ -2461,8 +2468,8 @@ Edit(void *_Nonnull obj)
 	AG_WindowSetPosition(win, AG_WINDOW_BL, 0);
 
 	lbl = AG_LabelNew(win, 0, _("GLX Driver: %s"), OBJECT(glx)->name);
-	AG_SetStyle(lbl, "font-family", "cm-sans");
-	AG_SetStyle(lbl, "font-size", "150%");
+	AG_SetFontFamily(lbl, "league-spartan");
+	AG_SetFontSize(lbl, "150%");
 
 	nb = AG_NotebookNew(win, AG_NOTEBOOK_EXPAND);
 
@@ -2478,7 +2485,7 @@ Edit(void *_Nonnull obj)
 	{
 		AG_LabelNewS(nt, 0, _("Pushed GL States:"));
 		tl = AG_TlistNewPolled(nt, AG_TLIST_EXPAND, PollGLContext,"%p",glx);
-		AG_SetStyle(tl, "font-size", "80%");
+		AG_SetFontSize(tl, "80%");
 		AG_TlistSizeHint(tl, "<XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX>", 4);
 	}
 	nt = AG_NotebookAdd(nb, _("WM States"), AG_BOX_VERT);

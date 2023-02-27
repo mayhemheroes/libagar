@@ -59,12 +59,12 @@ Init(void *obj)
 	int i;
 
 	AG_BoxSetType(&mp->box, AG_BOX_VERT);
-	AG_SetStyle(&mp->box, "padding", "0");
-	AG_SetStyle(&mp->box, "spacing", "0");
+	AG_SetPadding(&mp->box, "0");
+	AG_SetSpacing(&mp->box, "0");
 	for (i = 0; i < 4; i++) {
 		mp->panes[i] = AG_BoxNew(NULL, AG_BOX_VERT, 0);
-		AG_SetStyle(mp->panes[i], "padding", "0");
-		AG_SetStyle(mp->panes[i], "spacing", "0");
+		AG_SetPadding(mp->panes[i], "0");
+		AG_SetSpacing(mp->panes[i], "0");
 	}
 	mp->flags = 0;
 	mp->nPanes = 0;
@@ -193,7 +193,15 @@ AG_WidgetClass agMPaneClass = {
 	},
 	Draw,
 	NULL,			/* size_request */
-	NULL			/* size_allocate */
+	NULL,			/* size_allocate */
+	NULL,			/* mouse_button_down */
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	NULL,			/* key_down */
+	NULL,			/* key_up */
+	NULL,			/* touch */
+	NULL,			/* ctrl */
+	NULL			/* joy */
 };
 
 #endif /* AG_WIDGETS */

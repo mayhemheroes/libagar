@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2022 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2002-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,6 @@
 #ifndef AG_TLIST_EXP_LEVELS_INIT
 #define AG_TLIST_EXP_LEVELS_INIT 8  /* Initial tree-expansion state buffer size */
 #endif
-
-static void SelectRange(AG_Tlist *_Nonnull, int);
-static void DrawExpColl(AG_Tlist *_Nonnull, AG_TlistItem *_Nonnull, int,int);
-static Uint32 PollRefreshTimeout(AG_Timer *_Nonnull, AG_Event *_Nonnull);
 
 AG_Tlist *
 AG_TlistNew(void *parent, Uint flags)
@@ -110,6 +106,17 @@ AG_TlistNewPolledMs(void *parent, Uint flags, int ms, AG_EventFn fn,
 
 	AG_RedrawOnTick(tl, ms);
 	return (tl);
+}
+
+/* Timer for updates in AG_TLIST_POLL mode. */
+static Uint32
+PollRefreshTimeout(AG_Timer *_Nonnull to, AG_Event *_Nonnull event)
+{
+	AG_Tlist *tl = AG_TLIST_SELF();
+
+	tl->flags |= AG_TLIST_REFRESH;
+	AG_Redraw(tl);
+	return (to->ival);
 }
 
 /* Set the refresh rate for Polled mode in milliseconds (-1 = disable) */
@@ -322,17 +329,6 @@ OnLostFocus(AG_Event *_Nonnull event)
 	AG_DelTimer(tl, &tl->dblClickTo);
 }
 
-/* Timer for updates in AG_TLIST_POLL mode. */
-static Uint32
-PollRefreshTimeout(AG_Timer *_Nonnull to, AG_Event *_Nonnull event)
-{
-	AG_Tlist *tl = AG_TLIST_SELF();
-
-	tl->flags |= AG_TLIST_REFRESH;
-	AG_Redraw(tl);
-	return (to->ival);
-}
-
 static __inline__ void
 InvalidateLabels(AG_Tlist *tl, AG_TlistItem *it)
 {
@@ -352,6 +348,7 @@ StyleChanged(AG_Event *_Nonnull event)
 {
 	AG_Tlist *tl = AG_TLIST_SELF();
 	AG_TlistItem *it;
+	const float fontSize = WIDGET(tl)->font->spec.size;
 	int i;
 
 	if (WIDGET(tl)->paddingTop    < -3) {
@@ -366,8 +363,18 @@ StyleChanged(AG_Event *_Nonnull event)
 	}
 
 	TAILQ_FOREACH(it, &tl->items, items) {
+		AG_Font *itFont;
+
+		if ((itFont = it->font) != NULL &&
+		     itFont != WIDGET(tl)->font) {
+			it->font = AG_FetchFont(itFont->name,
+			    (fontSize * it->scale),
+			    itFont->flags);
+		}
 		InvalidateLabels(tl, it);
 	}
+
+
 	if ((tl->flags & AG_TLIST_FIXED_HEIGHT) == 0) {
 		tl->item_h = WFONT(tl)->lineskip +
 		             WIDGET(tl)->paddingTop +
@@ -378,8 +385,9 @@ StyleChanged(AG_Event *_Nonnull event)
 		AG_ColorInterpolate(&tl->cBgLine[i],
 		    &WIDGET(tl)->pal.c[i][AG_BG_COLOR],
 		    &WIDGET(tl)->pal.c[i][AG_LINE_COLOR],
-		    1,3);
+		    1,5);
 	}
+
 }
 
 static void
@@ -472,10 +480,7 @@ FreeItem(AG_Tlist *_Nonnull tl, AG_TlistItem *_Nonnull it)
 	}
 	if (it->color)
 		free(it->color);
-#if 0
-	if (it->font)
-		AG_UnusedFont(it->font);
-#endif
+
 	free(it);
 }
 
@@ -565,6 +570,38 @@ SetExpansionLevel(AG_Tlist *_Nonnull tl, int level, int y)
 	}
 }
 
+/* Draw Expand / Collapse control. */
+static void
+DrawExpandCollapse(AG_Tlist *_Nonnull tl, AG_TlistItem *_Nonnull it,
+    int x, int y)
+{
+	AG_Rect r;
+	const AG_Color *cLine = &WCOLOR(tl, LINE_COLOR);
+	static AG_VectorElement expdSign[] = {
+		{ AG_VE_LINE,    3,5,  1,0, 0, NULL },            /* - */
+		{ AG_VE_LINE,    1,7,  1,0, 0, NULL },            /* | */
+	};
+	const int h = tl->item_h >> 1;
+	const int h_2 = (h >> 1);
+
+	r.x = x + h_2;
+	r.y = y + h_2;
+	r.w = h + 1;
+	r.h = h + 2;
+	if ((h & 1) == 0) {
+		r.w++;
+		r.h++;
+	}
+
+	AG_DrawRectFilled(tl, &r, &WCOLOR(tl, FG_COLOR));
+
+	if (it->flags & AG_TLIST_ITEM_EXPANDED) {
+		AG_DrawVector(tl, 3,3, &r, cLine, expdSign, 0,1);    /* - */
+	} else {
+		AG_DrawVector(tl, 3,3, &r, cLine, expdSign, 0,2);    /* + */
+	}
+}
+
 static void
 Draw(void *_Nonnull obj)
 {
@@ -595,7 +632,7 @@ Draw(void *_Nonnull obj)
 
 	AG_WidgetDraw(tl->sbar);
 
-	r.w--;
+	r.w -= 2;
 	r.h--;
 	AG_PushClipRect(tl, &r);
 
@@ -678,15 +715,6 @@ Draw(void *_Nonnull obj)
 				AG_TextFont(it->font);
 				Stext = AG_TextRender(it->text);
 				AG_PopTextState();
-			} else if (it->fontFlags != 0) {  /* Alt font style */
-				const AG_Font *fontOrig = WFONT(tl);
-
-				AG_PushTextState();
-				AG_TextFontLookup(OBJECT(fontOrig)->name,
-				    fontOrig->spec.size,
-				    it->fontFlags);
-				Stext = AG_TextRender(it->text);
-				AG_PopTextState();
 			} else {
 				Stext = AG_TextRender(it->text);
 			}
@@ -698,6 +726,7 @@ Draw(void *_Nonnull obj)
 
 			S = AG_SurfaceStdRGB(wReq, hItem);
 #ifdef AG_DEBUG
+			/* Make it easier to inspect guides in Debugger. */
 			S->guides[0] = Stext->guides[0];
 #endif
 			AG_FillRect(S, NULL, it->selected ? cSel : cItemBg);
@@ -825,7 +854,7 @@ Draw(void *_Nonnull obj)
 		    cLine);
 
 		if (it->flags & AG_TLIST_HAS_CHILDREN) {
-			DrawExpColl(tl,it,
+			DrawExpandCollapse(tl,it,
 			    (it->depth * hItem),
 			    y);
 		}
@@ -845,37 +874,6 @@ Draw(void *_Nonnull obj)
 		tl->flags &= ~(AG_TLIST_SCROLLTOSEL);
 	}
 	AG_PopClipRect(tl);
-}
-
-/* Draw Expand / Collapse control area. */
-static void
-DrawExpColl(AG_Tlist *_Nonnull tl, AG_TlistItem *_Nonnull it, int x, int y)
-{
-	AG_Rect r;
-	const AG_Color *cLine = &WCOLOR(tl, LINE_COLOR);
-	static AG_VectorElement expdSign[] = {
-		{ AG_VE_LINE,    3,5,  1,0, 0, NULL },            /* - */
-		{ AG_VE_LINE,    1,7,  1,0, 0, NULL },            /* | */
-	};
-	const int h = tl->item_h >> 1;
-	const int h_2 = (h >> 1);
-
-	r.x = x + h_2;
-	r.y = y + h_2;
-	r.w = h + 1;
-	r.h = h + 2;
-	if ((h & 1) == 0) {
-		r.w++;
-		r.h++;
-	}
-
-	AG_DrawRectFilled(tl, &r, &WCOLOR(tl, FG_COLOR));
-
-	if (it->flags & AG_TLIST_ITEM_EXPANDED) {
-		AG_DrawVector(tl, 3,3, &r, cLine, expdSign, 0,1);    /* - */
-	} else {
-		AG_DrawVector(tl, 3,3, &r, cLine, expdSign, 0,2);    /* + */
-	}
 }
 
 /* Remove a tlist item. */
@@ -946,23 +944,44 @@ AG_TlistBegin(AG_Tlist *tl)
 	AG_ObjectUnlock(tl);
 }
 
-/* Generic string compare routine. */
+/* Compare the signed integers v of items a and b (ascending). */
+int
+AG_TlistCompareInts(const AG_TlistItem *a, const AG_TlistItem *b)
+{
+	return (a->v - b->v);
+}
+
+/* Compare the signed integers v of items a and b (descending). */
+int
+AG_TlistCompareIntsDsc(const AG_TlistItem *a, const AG_TlistItem *b)
+{
+	return (b->v - a->v);
+}
+
+/* Compare the unsigned integers u of items a and b. */
+int
+AG_TlistCompareUints(const AG_TlistItem *a, const AG_TlistItem *b)
+{
+	return (a->u - b->u);
+}
+
+/* Compare the text fields of items a and b case-sensitively (no locale). */
 int
 AG_TlistCompareStrings(const AG_TlistItem *a, const AG_TlistItem *b)
 {
 	return (strcmp(a->text, b->text) == 0);
 }
 
-/* Generic pointer compare routine. */
+/* Compare the pointers p1 of items a and b. */
 int
 AG_TlistComparePtrs(const AG_TlistItem *a, const AG_TlistItem *b)
 {
 	return (a->p1 == b->p1);
 }
 
-/* Generic pointer+class compare routine. */
+/* Compare the pointers p1 and categories cat of items a and b. */
 int
-AG_TlistComparePtrsAndClasses(const AG_TlistItem *a,const AG_TlistItem *b)
+AG_TlistComparePtrsAndCats(const AG_TlistItem *a, const AG_TlistItem *b)
 {
 	return ((a->p1 == b->p1) &&
 	        (a->cat != NULL && b->cat != NULL &&
@@ -970,16 +989,21 @@ AG_TlistComparePtrsAndClasses(const AG_TlistItem *a,const AG_TlistItem *b)
 }
 
 /* Set an alternate compare function for items. */
-void
+AG_TlistCompareFn
 AG_TlistSetCompareFn(AG_Tlist *tl,
     int (*fn)(const AG_TlistItem *_Nonnull, const AG_TlistItem *_Nonnull))
 {
+	AG_TlistCompareFn fnOrig;
+
 	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
 	AG_ObjectLock(tl);
 
+	fnOrig = tl->compare_fn;
 	tl->compare_fn = fn;
 
 	AG_ObjectUnlock(tl);
+
+	return (fnOrig);
 }
 
 /* Restore previous item selection state. */
@@ -1180,6 +1204,34 @@ AG_TlistAddPtrHead(AG_Tlist *tl, const AG_Surface *icon, const char *text,
 	return (it);
 }
 
+/* Move an item to the head of the list. */
+void
+AG_TlistMoveToHead(AG_Tlist *tl, AG_TlistItem *it)
+{
+	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
+	AG_ObjectLock(tl);
+
+	TAILQ_REMOVE(&tl->items, it, items);
+	TAILQ_INSERT_HEAD(&tl->items, it, items);
+
+	AG_Redraw(tl);
+	AG_ObjectUnlock(tl);
+}
+
+/* Move an item to the tail of the list. */
+void
+AG_TlistMoveToTail(AG_Tlist *tl, AG_TlistItem *it)
+{
+	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
+	AG_ObjectLock(tl);
+
+	TAILQ_REMOVE(&tl->items, it, items);
+	TAILQ_INSERT_TAIL(&tl->items, it, items);
+
+	AG_Redraw(tl);
+	AG_ObjectUnlock(tl);
+}
+
 /* Return a newly allocated and initialized AG_TlistItem */
 AG_TlistItem *
 AG_TlistItemNew(const AG_Surface *icon)
@@ -1190,7 +1242,10 @@ AG_TlistItemNew(const AG_Surface *icon)
 #ifdef AG_TYPE_SAFETY
 	Strlcpy(it->tag, AG_TLIST_ITEM_TAG, sizeof(it->tag));
 #endif
-	it->label[2] = it->label[1] = it->label[0] = -1;
+	it->label[0] = -1;
+	it->label[1] = -1;
+	it->label[2] = -1;
+	it->v = -1;
 	it->cat = "";
 	it->iconsrc = (icon) ? AG_SurfaceDup(icon) : NULL;
 
@@ -1199,9 +1254,11 @@ AG_TlistItemNew(const AG_Surface *icon)
 	                   sizeof(AG_Font *) +      /* font */
 	                   sizeof(int) +            /* selected */
 	                   sizeof(Uint) +           /* depth */
-	                   sizeof(Uint) +           /* flags */
-	                   sizeof(Uint) +           /* fontFlags */
-	                   sizeof(char));           /* text[0] */
+	                   sizeof(Uint));           /* flags */
+	it->scale = 1.0f;
+	it->text[0] = '\0';
+	it->u = 0;
+
 	return (it);
 }
 
@@ -1244,22 +1301,31 @@ AG_TlistSetColor(AG_Tlist *tl, AG_TlistItem *it, const AG_Color *c)
 	AG_ObjectUnlock(tl);
 }
 
-/* Set an alternate, per-item font. */
+/*
+ * Set an alternate per-item font. The scale argument is a scaling factor
+ * relative to the size of the tlist's default font. The flags arguments
+ * is the set of AG_Font(3) style flags.
+ *
+ * If face is NULL, use the tlist's font face.
+ * If scale is 1.0f, use the same font size as the tlist.
+ * If flags is 0, use the Regular style.
+ */
 void
-AG_TlistSetFont(AG_Tlist *tl, AG_TlistItem *it, AG_Font *font)
+AG_TlistSetFont(AG_Tlist *tl, AG_TlistItem *it, const char *face, float scale,
+    Uint flags)
 {
+	AG_Font *font;
+
 	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
 	AG_ObjectLock(tl);
-#if 0
-	if (it->font)
-		AG_UnusedFont(it->font);
-#endif
-	if (font) {
-		font->nRefs++;
-		it->font = font;
-	} else {
-		it->font = NULL;
+
+	font = WIDGET(tl)->font;
+
+	if (face == NULL) {
+		face = font->name;
 	}
+	it->font = AG_FetchFont(face, (font->spec.size * scale), flags);
+	it->scale = scale;
 
 	InvalidateLabels(tl, it);
 	AG_Redraw(tl);
@@ -1442,13 +1508,51 @@ PopupMenu(AG_Tlist *_Nonnull tl, AG_TlistPopup *_Nonnull tp, int x, int y)
 	tp->panel = AG_MenuExpand(tl, tp->item, x+4, y+4);
 }
 
+/* Select a range of items */
 static void
-MouseButtonDown(AG_Event *_Nonnull event)
+SelectRange(AG_Tlist *tl, int idx)
 {
-	AG_Tlist *tl = AG_TLIST_SELF();
-	const int button = AG_INT(1);
-	const int x = AG_INT(2);
-	const int y = AG_INT(3);
+	AG_TlistItem *oitem;
+	int idxOther = -1;
+	int i = 0, nItems = 0;
+
+	TAILQ_FOREACH(oitem, &tl->items, items) {
+		if (oitem->selected) {
+			idxOther = i;
+		}
+		i++;
+		nItems++;
+	}
+	if (idxOther == -1) {
+		return;
+	}
+	if (idxOther < idx) {			  /* Forward */
+		i = 0;
+		TAILQ_FOREACH(oitem, &tl->items, items) {
+			if (i == idx)
+				break;
+			if (i > idxOther) {
+				SelectItem(tl, oitem);
+			}
+			i++;
+		}
+	} else if (idxOther >= idx) {		  /* Backward */
+		i = nItems;
+		TAILQ_FOREACH_REVERSE(oitem, &tl->items,
+		    ag_tlist_itemq, items) {
+			if (i <= idxOther)
+				SelectItem(tl, oitem);
+			if (i == idx)
+				break;
+			i--;
+		}
+	}
+}
+
+static void
+MouseButtonDown(void *obj, AG_MouseButton button, int x, int y)
+{
+	AG_Tlist *tl = obj;
 	AG_TlistItem *ti;
 	const int idx = tl->rOffs + y/tl->item_h + 1;
 	
@@ -1469,6 +1573,8 @@ MouseButtonDown(AG_Event *_Nonnull event)
 			tl->rOffs = MAX(0, tl->nItems - tl->nVisible);
 		}
 		AG_Redraw(tl);
+		break;
+	default:
 		break;
 	}
 
@@ -1517,6 +1623,8 @@ MouseButtonDown(AG_Event *_Nonnull event)
 		SelectItem(tl, ti);
 
 		break;
+	default:
+		break;
 	}
 
 	switch (button) {
@@ -1556,73 +1664,79 @@ MouseButtonDown(AG_Event *_Nonnull event)
 					PopupMenu(tl, tp, x,y);
 			}
 		}
+	default:
+		break;
 	}
 }
 
-/* Handle multiple selections (shift) */
 static void
-SelectRange(AG_Tlist *tl, int idx)
+ExpandSelected(AG_Tlist *tl)
 {
-	AG_TlistItem *oitem;
-	int idxOther = -1;
-	int i = 0, nItems = 0;
+	AG_TlistItem *ti;
 
-	TAILQ_FOREACH(oitem, &tl->items, items) {
-		if (oitem->selected) {
-			idxOther = i;
-		}
-		i++;
-		nItems++;
-	}
-	if (idxOther == -1) {
+	if ((ti = AG_TlistSelectedItem(tl)) == NULL ||
+	    (ti->flags & AG_TLIST_HAS_CHILDREN) == 0)
 		return;
-	}
-	if (idxOther < idx) {			  /* Forward */
-		i = 0;
-		TAILQ_FOREACH(oitem, &tl->items, items) {
-			if (i == idx)
-				break;
-			if (i > idxOther) {
-				SelectItem(tl, oitem);
-			}
-			i++;
-		}
-	} else if (idxOther >= idx) {		  /* Backward */
-		i = nItems;
-		TAILQ_FOREACH_REVERSE(oitem, &tl->items,
-		    ag_tlist_itemq, items) {
-			if (i <= idxOther)
-				SelectItem(tl, oitem);
-			if (i == idx)
-				break;
-			i--;
-		}
+
+	if ((ti->flags & AG_TLIST_ITEM_EXPANDED) == 0) {
+		ti->flags |= AG_TLIST_ITEM_EXPANDED;
+		AG_Redraw(tl);
 	}
 }
 
 static void
-KeyDown(AG_Event *_Nonnull event)
+CollapseSelected(AG_Tlist *tl)
 {
-	AG_Tlist *tl = AG_TLIST_SELF();
-	const int keysym = AG_INT(1);
+	AG_TlistItem *ti;
+
+	if ((ti = AG_TlistSelectedItem(tl)) == NULL ||
+	    (ti->flags & AG_TLIST_HAS_CHILDREN) == 0)
+		return;
+
+	if (ti->flags & AG_TLIST_ITEM_EXPANDED) {
+		ti->flags &= ~(AG_TLIST_ITEM_EXPANDED);
+		AG_Redraw(tl);
+	}
+}
+
+static void
+KeyDown(void *obj, AG_KeySym ks, AG_KeyMod kmod, AG_Char ch)
+{
+	AG_Tlist *tl = obj;
 	void *ti;
 
-	switch (keysym) {
+	switch (ks) {
 	case AG_KEY_UP:
 		DecrementSelection(tl, 1);
-		AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout, "%i", -1);
+		if ((tl->flags & AG_TLIST_NO_KEYREPEAT) == 0) {
+			AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout,"%i",-1);
+		}
 		break;
 	case AG_KEY_DOWN:
 		IncrementSelection(tl, 1);
-		AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout, "%i", +1);
+		if ((tl->flags & AG_TLIST_NO_KEYREPEAT) == 0) {
+			AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout,"%i",+1);
+		}
+		break;
+	case AG_KEY_RIGHT:
+		ExpandSelected(tl);
+		AG_DelTimer(tl, &tl->moveTo);
+		break;
+	case AG_KEY_LEFT:
+		CollapseSelected(tl);
+		AG_DelTimer(tl, &tl->moveTo);
 		break;
 	case AG_KEY_PAGEUP:
 		DecrementSelection(tl, agPageIncrement);
-		AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout, "%i", -agPageIncrement);
+		if ((tl->flags & AG_TLIST_NO_KEYREPEAT) == 0) {
+			AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout,"%i",-agPageIncrement);
+		}
 		break;
 	case AG_KEY_PAGEDOWN:
 		IncrementSelection(tl, agPageIncrement);
-		AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout, "%i", +agPageIncrement);
+		if ((tl->flags & AG_TLIST_NO_KEYREPEAT) == 0) {
+			AG_AddTimer(tl, &tl->moveTo, agKbdDelay, MoveTimeout,"%i",+agPageIncrement);
+		}
 		break;
 	case AG_KEY_HOME:
 		AG_TlistScrollToStart(tl);
@@ -1636,24 +1750,27 @@ KeyDown(AG_Event *_Nonnull event)
 			AG_PostEvent(tl, "tlist-return", "%p", ti);
 		}
 		break;
+	default:
+		break;
 	}
-	tl->lastKeyDown = keysym;
+	tl->lastKeyDown = ks;
 }
 
 static void
-KeyUp(AG_Event *_Nonnull event)
+KeyUp(void *obj, AG_KeySym ks, AG_KeyMod kmod, AG_Char ch)
 {
-	AG_Tlist *tl = AG_TLIST_SELF();
-	const int keysym = AG_INT(1);
+	AG_Tlist *tl = obj;
 
-	switch (keysym) {
+	switch (ks) {
 	case AG_KEY_UP:
 	case AG_KEY_DOWN:
 	case AG_KEY_PAGEUP:
 	case AG_KEY_PAGEDOWN:
-		if (keysym == tl->lastKeyDown) {
+		if (ks == tl->lastKeyDown) {
 			AG_DelTimer(tl, &tl->moveTo);
 		}
+		break;
+	default:
 		break;
 	}
 }
@@ -1697,6 +1814,7 @@ Init(void *_Nonnull obj)
 	AG_InitTimer(&tl->moveTo, "move", 0);
 	AG_InitTimer(&tl->refreshTo, "refresh", 0);
 	AG_InitTimer(&tl->dblClickTo, "dblClick", 0);
+	AG_InitTimer(&tl->ctrlMoveTo, "ctrlMove", 0);
 
 	tl->sbar = AG_ScrollbarNew(tl, AG_SCROLLBAR_VERT, AG_SCROLLBAR_EXCL);
 	AG_SetInt(tl->sbar, "min", 0);
@@ -1705,15 +1823,12 @@ Init(void *_Nonnull obj)
 	AG_BindInt(tl->sbar, "value", &tl->rOffs);
 	AG_WidgetSetFocusable(tl->sbar, 0);
 	
-	AG_AddEvent(tl, "padding-changed", StyleChanged, NULL);
-	AG_AddEvent(tl, "palette-changed", StyleChanged, NULL);
-	AG_AddEvent(tl, "font-changed",  StyleChanged, NULL);
-	AG_SetEvent(tl, "mouse-button-down", MouseButtonDown, NULL);
-	AG_SetEvent(tl, "key-down", KeyDown, NULL);
 	AG_AddEvent(tl, "widget-shown", OnShow, NULL);
 	AG_AddEvent(tl, "widget-hidden", OnHide, NULL);
 	AG_SetEvent(tl, "widget-lostfocus", OnLostFocus, NULL);
-	AG_SetEvent(tl, "key-up", KeyUp, NULL);
+	AG_AddEvent(tl, "padding-changed", StyleChanged, NULL);
+	AG_AddEvent(tl, "palette-changed", StyleChanged, NULL);
+	AG_AddEvent(tl, "font-changed",  StyleChanged, NULL);
 
 	AG_BindPointer(tl, "selected", &tl->selected);
 }
@@ -2011,13 +2126,36 @@ AG_TlistScrollToEnd(AG_Tlist *tl)
 	AG_Redraw(tl);
 }
 
+/* Scroll to the first selected item (no-op if no selection). */
+void
+AG_TlistScrollToSelection(AG_Tlist *tl)
+{
+	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
+	AG_TlistItem *it;
+	int m = 0;
+
+	AG_ObjectLock(tl);
+
+	TAILQ_FOREACH(it, &tl->items, items) {
+		if (it->selected) {
+			tl->rOffs = m - (tl->nVisible << 1);
+			break;
+		}
+		m++;
+	}
+	if (it != NULL)
+		AG_Redraw(tl);
+
+	AG_ObjectUnlock(tl);
+}
+
 static int
 CompareText(const void *_Nonnull p1, const void *_Nonnull p2)
 {
-	const AG_TlistItem *it1 = *(const AG_TlistItem **)p1;
-	const AG_TlistItem *it2 = *(const AG_TlistItem **)p2;
+	const AG_TlistItem *a = *(const AG_TlistItem **)p1;
+	const AG_TlistItem *b = *(const AG_TlistItem **)p2;
 
-	return strcoll(it1->text, it2->text);
+	return strcoll(a->text, b->text);
 }
 
 /* Sort list items by text using quicksort. */
@@ -2037,6 +2175,42 @@ AG_TlistSort(AG_Tlist *tl)
 		items[i++] = it;
 	}
 	qsort(items, tl->nItems, sizeof(AG_TlistItem *), CompareText);
+	TAILQ_INIT(&tl->items);
+	for (i = 0; i < tl->nItems; i++)
+		TAILQ_INSERT_TAIL(&tl->items, items[i], items);
+
+	AG_Redraw(tl);
+	AG_ObjectUnlock(tl);
+
+	free(items);
+}
+
+static int
+CompareInts(const void *_Nonnull p1, const void *_Nonnull p2)
+{
+	const AG_TlistItem *a = *(const AG_TlistItem **)p1;
+	const AG_TlistItem *b = *(const AG_TlistItem **)p2;
+
+	return (a->v - b->v);
+}
+
+/* Sort list items by integer value v. */
+void
+AG_TlistSortByInt(AG_Tlist *tl)
+{
+	AG_TlistItem *it, **items;
+	Uint i = 0;
+
+	if ((items = TryMalloc(tl->nItems * sizeof(AG_TlistItem *))) == NULL)
+		return;
+
+	AG_OBJECT_ISA(tl, "AG_Widget:AG_Tlist:*");
+	AG_ObjectLock(tl);
+
+	TAILQ_FOREACH(it, &tl->items, items) {
+		items[i++] = it;
+	}
+	qsort(items, tl->nItems, sizeof(AG_TlistItem *), CompareInts);
 	TAILQ_INIT(&tl->items);
 	for (i = 0; i < tl->nItems; i++)
 		TAILQ_INSERT_TAIL(&tl->items, items[i], items);
@@ -2078,6 +2252,72 @@ AG_TlistGetItemPtr(const AG_Event *event, int idx, int isConst)
 }
 #endif /* AG_TYPE_SAFETY */
 
+static void
+Ctrl(void *obj, void *inputDevice, const AG_DriverEvent *dev)
+{
+	AG_Tlist *tl = obj;
+	const int isDisabled = AG_WidgetDisabled(tl);
+
+	switch (dev->type) {
+	case AG_DRIVER_CTRL_AXIS_MOTION:
+		if (dev->ctrlAxis.axis == AG_CTRL_AXIS_LEFT_Y && !isDisabled) {
+			if (dev->ctrlAxis.value == -0x8000) {
+				DecrementSelection(tl, 1);
+				if ((tl->flags & AG_TLIST_NO_KEYREPEAT) == 0) {
+					AG_AddTimer(tl, &tl->ctrlMoveTo, agKbdDelay,
+					    MoveTimeout,"%i",-1);
+				}
+			} else if (dev->ctrlAxis.value == 0x7fff) {
+				IncrementSelection(tl, 1);
+				if ((tl->flags & AG_TLIST_NO_KEYREPEAT) == 0) {
+					AG_AddTimer(tl, &tl->ctrlMoveTo, agKbdDelay,
+					    MoveTimeout,"%i",+1);
+				}
+			} else {
+				AG_DelTimer(tl, &tl->ctrlMoveTo);
+			}
+		} else if (dev->ctrlAxis.axis == AG_CTRL_AXIS_LEFT_X && !isDisabled) {
+			if (dev->ctrlAxis.value == -0x8000) {
+				CollapseSelected(tl);
+			} else if (dev->ctrlAxis.value == 0x7fff) {
+				ExpandSelected(tl);
+			}
+		} else if (dev->ctrlAxis.axis == AG_CTRL_AXIS_TRIGGER_LEFT &&
+		           dev->ctrlAxis.value > 0) {
+			tl->rOffs -= tl->lineScrollAmount;
+			if (tl->rOffs < 0) {
+				tl->rOffs = 0;
+			}
+			AG_Redraw(tl);
+		} else if (dev->ctrlAxis.axis == AG_CTRL_AXIS_TRIGGER_RIGHT &&
+		           dev->ctrlAxis.value > 0) {
+			tl->rOffs += tl->lineScrollAmount;
+			if (tl->rOffs > (tl->nItems - tl->nVisible)) {
+				tl->rOffs = MAX(0, tl->nItems - tl->nVisible);
+			}
+			AG_Redraw(tl);
+		}
+		break;
+	case AG_DRIVER_CTRL_BUTTON_DOWN:
+		if (dev->ctrlButton.which == AG_CTRL_BUTTON_A && !isDisabled) {
+			AG_TlistItem *ti;
+
+			AG_DelTimer(tl, &tl->dblClickTo);
+			if ((ti = AG_TlistSelectedItem(tl)) != NULL) {
+				if (tl->dblClickEv) {
+					AG_PostEventByPtr(tl,
+					    tl->dblClickEv, "%p", ti);
+				}
+				AG_PostEvent(tl, "tlist-dblclick", "%p", ti);
+			}
+			tl->dblClicked = NULL;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 AG_WidgetClass agTlistClass = {
 	{
 		"Agar(Widget:Tlist)",
@@ -2092,7 +2332,15 @@ AG_WidgetClass agTlistClass = {
 	},
 	Draw,
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	MouseButtonDown,
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	KeyDown,
+	KeyUp,
+	NULL,			/* touch */
+	Ctrl,
+	NULL			/* joy */
 };
 
 #endif /* AG_WIDGETS */

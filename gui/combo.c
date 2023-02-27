@@ -76,16 +76,22 @@ AG_ComboNewS(void *parent, Uint flags, const char *label)
 	return (com);
 }
 
+static __inline__ void
+ClosePanel(AG_Combo *com, AG_Window *win)
+{
+	com->wSaved = WIDTH(win);
+	com->hSaved = HEIGHT(win);
+	AG_WindowHide(win);
+	AG_SetInt(com->button, "state", 0);
+}
+
 static void
 PanelWindowClose(AG_Event *_Nonnull event)
 {
 	AG_Window *win = AG_WINDOW_SELF();
 	AG_Combo *com = AG_COMBO_PTR(1);
 
-	com->wSaved = WIDTH(win);
-	com->hSaved = HEIGHT(win);
-	AG_WindowHide(win);
-	AG_SetInt(com->button, "state", 0);
+	ClosePanel(com, win);
 }
 
 static void
@@ -99,12 +105,8 @@ PanelMouseButtonDown(AG_Event *_Nonnull event)
 	if (com->panel == NULL)
 		return;
 
-	if ((x < 0 || y < 0 || x > WIDTH(win) || y > HEIGHT(win))) {
-		com->wSaved = WIDTH(win);
-		com->hSaved = HEIGHT(win);
-		AG_WindowHide(win);
-		AG_SetInt(com->button, "state", 0);
-	}
+	if ((x < 0 || y < 0 || x > WIDTH(win) || y > HEIGHT(win)))
+		ClosePanel(com, win);
 }
 
 /* An item has been selected from the drop-down menu. */
@@ -113,26 +115,30 @@ SelectedItem(AG_Event *_Nonnull event)
 {
 	AG_Tlist *tl = AG_TLIST_SELF();
 	AG_Combo *com = AG_COMBO_PTR(1);
-	AG_TlistItem *ti;
+	AG_TlistItem *ti = AG_TLIST_ITEM_PTR(2);
 	AG_Window *panel;
 
 	AG_ObjectLock(com);
 
 	AG_ObjectLock(tl);
-	if ((ti = AG_TlistSelectedItem(tl)) != NULL) {
-		AG_TextboxSetString(com->tbox, ti->text);
-		AG_PostEvent(com, "combo-selected", "%p", ti);
-	}
+	AG_TextboxSetString(com->tbox, ti->text);
+	AG_PostEvent(com, "combo-selected", "%p", ti);
 	AG_ObjectUnlock(tl);
 
-	if ((panel = com->panel) != NULL) {
-		com->wSaved = WIDTH(panel);
-		com->hSaved = HEIGHT(panel);
-		AG_WindowHide(panel);
-		AG_SetInt(com->button, "state", 0);
-	}
+	if ((panel = com->panel) != NULL)
+		ClosePanel(com, panel);
 
 	AG_ObjectUnlock(com);
+}
+
+static void
+PanelCancelPressed(AG_Event *event)
+{
+	AG_Combo *com = AG_COMBO_PTR(1);
+	AG_Window *panel;
+
+	if ((panel = com->panel) != NULL)
+		ClosePanel(com, panel);
 }
 
 /* User pressed or released the expand ("...") button. */
@@ -151,10 +157,7 @@ ExpandButtonPushed(AG_Event *_Nonnull event)
 
 	if (button_state == 0) {                                /* Collapse */
 		if ((win = com->panel) != NULL) {
-			com->wSaved = WIDTH(win);
-			com->hSaved = HEIGHT(win);
-			AG_WindowHide(win);
-			AG_SetInt(com->button, "state", 0);
+			ClosePanel(com, win);
 			AG_PostEvent(com, "combo-collapsed", NULL);
 		}
 		goto out;
@@ -165,8 +168,9 @@ ExpandButtonPushed(AG_Event *_Nonnull event)
 		AG_TlistClear(com->list);
 		AG_PostEvent(com, "combo-expanded", NULL);
 	} else {                                              /* New window */
-		if ((win = AG_WindowNew(AG_WINDOW_MODAL |
-			                AG_WINDOW_NOTITLE)) == NULL) {
+		AG_Button *bu;
+
+		if ((win = AG_WindowNew(AG_WINDOW_MODAL | AG_WINDOW_NOTITLE)) == NULL) {
 			return;
 		}
 		win->wmType = AG_WINDOW_WM_COMBO;
@@ -174,15 +178,22 @@ ExpandButtonPushed(AG_Event *_Nonnull event)
 		AG_ObjectSetName(win, "_combo%u", agComboCounter++);
 
 		/* TODO specific style attribute. */
-		AG_SetStyle(win, "padding", "0");
+		AG_SetPadding(win, "0");
 
 		com->panel = win;
-		com->list = tl = AG_TlistNew(win, AG_TLIST_EXPAND); 
+		com->list = tl = AG_TlistNew(win, AG_TLIST_EXPAND |
+		                                  AG_TLIST_NO_KEYREPEAT); 
+
+		bu = AG_ButtonNewFn(win, AG_BUTTON_HFILL, _("Cancel"),
+		    PanelCancelPressed, "%p", com);
+
+		AG_SetFontSize(bu, "80%");
+		AG_SetPadding(bu, "0 4 3 4");
 
 		if (com->flags & AG_COMBO_POLL) { tl->flags |= AG_TLIST_POLL; }
 		if (com->flags & AG_COMBO_SCROLLTOSEL) { tl->flags |= AG_TLIST_SCROLLTOSEL; }
 
-		AG_SetEvent(tl, "tlist-changed", SelectedItem,"%p",com);
+		AG_SetEvent(tl, "tlist-selected", SelectedItem,"%p",com);
 
 		AG_PostEvent(com, "combo-expanded", NULL);
 
@@ -327,6 +338,7 @@ Init(void *_Nonnull obj)
 {
 	AG_Combo *com = obj;
 	AG_Textbox *tb;
+	AG_Button *btn;
 
 	com->flags = 0;
 	com->wSaved = 0;
@@ -339,10 +351,10 @@ Init(void *_Nonnull obj)
 	AG_SetString(tb, "padding", "inherit");
 	AG_WidgetForwardFocus(com, tb);
 
-	com->button = AG_ButtonNewS(com, AG_BUTTON_STICKY |
-	                                 AG_BUTTON_NO_FOCUS, _(" ... "));
-	AG_SetStyle(com->button, "padding", "2");
-	AG_SetEvent(com->button, "button-pushed", ExpandButtonPushed, "%p", com);
+	btn = com->button = AG_ButtonNewS(com, AG_BUTTON_STICKY |
+	                                       AG_BUTTON_NO_FOCUS, _(" ... "));
+	AG_SetPadding(btn, "2");
+	AG_SetEvent(btn, "button-pushed", ExpandButtonPushed,"%p",com);
 
 	com->list = NULL;
 	com->panel = NULL;
@@ -446,7 +458,15 @@ AG_WidgetClass agComboClass = {
 	},
 	Draw,
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	NULL,			/* mouse_button_down */
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	NULL,			/* key_down */
+	NULL,			/* key_up */
+	NULL,			/* touch */
+	NULL,			/* ctrl */
+	NULL			/* joy */
 };
 
 #endif /* AG_WIDGETS */

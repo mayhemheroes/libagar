@@ -79,8 +79,8 @@ AG_BoxNew(void *parent, enum ag_box_type type, Uint flags)
 	if (flags & AG_BOX_VFILL) { WIDGET(box)->flags |= AG_WIDGET_VFILL; }
 
 	if (flags & AG_BOX_NO_SPACING) {
-		AG_SetStyle(box, "spacing", "0");
-		AG_SetStyle(box, "padding", "0");
+		AG_SetSpacing(box, "0");
+		AG_SetPadding(box, "0");
 	}
 
 	AG_ObjectAttach(parent, box);
@@ -136,7 +136,7 @@ AG_BoxSetLabelS(AG_Box *box, const char *s)
 	if (s != NULL) {
 		if (box->lbl == NULL) {
 			box->lbl = AG_LabelNewS(box, 0, s);
-			AG_SetStyle(box->lbl, "font-size", "80%");
+			AG_SetFontSize(box->lbl, "80%");
 		} else {
 			AG_LabelTextS(box->lbl, s);
 		}
@@ -151,9 +151,9 @@ AG_BoxSetLabelS(AG_Box *box, const char *s)
 }
 
 static void
-MouseButtonDown(AG_Event *_Nonnull event)
+MouseButtonDown(void *obj, AG_MouseButton button, int x, int y)
 {
-	AG_Box *box = AG_BOX_SELF();
+	AG_Box *box = obj;
 	AG_Window *wParent = AG_ParentWindow(box);
 
 	if (!AG_WindowIsFocused(wParent))
@@ -174,8 +174,6 @@ Init(void *_Nonnull obj)
 	box->lbl = NULL;
 	box->hAlign = AG_BOX_LEFT;
 	box->vAlign = AG_BOX_TOP;
-
-	AG_SetEvent(box, "mouse-button-down", MouseButtonDown, NULL);
 }
 
 static void
@@ -465,6 +463,7 @@ SizeAllocateHomogenousHoriz(AG_Box *_Nonnull box,
 	                          WIDGET(box)->paddingBottom;
 	const int wAvail = a->w - (WIDGET(box)->paddingLeft +
 	                           WIDGET(box)->paddingRight);
+	const int spacing = WIDGET(box)->spacingHoriz;
 	int wUsed = 0;
 
 	aChld.x = WIDGET(box)->paddingLeft;
@@ -481,10 +480,11 @@ SizeAllocateHomogenousHoriz(AG_Box *_Nonnull box,
 		if (OBJECT(chld) == TAILQ_LAST(&OBJECT(box)->children, ag_objectq)) {
 			chldLast = chld;
 		} else {
-			aChld.x += aChld.w + 1;
+			aChld.x += aChld.w + spacing;
 		}
-		wUsed += (aChld.w + 1);
+		wUsed += (aChld.w + spacing);
 	}
+
 	if (chldLast != NULL && wUsed < wAvail) {    /* Roundoff compensation */
 		aChld.w += wAvail - wUsed;
 		AG_WidgetSizeAlloc(chldLast, &aChld);
@@ -501,6 +501,7 @@ SizeAllocateHomogenousVert(AG_Box *_Nonnull box,
 	                             WIDGET(box)->paddingRight;
 	const int hAvail = a->h - (WIDGET(box)->paddingTop +
 	                           WIDGET(box)->paddingBottom);
+	const int spacing = WIDGET(box)->spacingVert;
 	int hUsed = 0;
 
 	aChld.x = WIDGET(box)->paddingLeft;
@@ -517,10 +518,11 @@ SizeAllocateHomogenousVert(AG_Box *_Nonnull box,
 		if (OBJECT(chld) == TAILQ_LAST(&OBJECT(box)->children, ag_objectq)) {
 			chldLast = chld;
 		} else {
-			aChld.y += aChld.h + 1;
+			aChld.y += aChld.h + spacing;
 		}
-		hUsed += (aChld.h + 1);
+		hUsed += (aChld.h + spacing);
 	}
+
 	if (chldLast != NULL && hUsed < hAvail) {    /* Roundoff compensation */
 		aChld.h += hAvail - hUsed;
 		AG_WidgetSizeAlloc(chldLast, &aChld);
@@ -694,7 +696,15 @@ AG_WidgetClass agBoxClass = {
 	},
 	Draw,
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	MouseButtonDown,
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	NULL,			/* key_down */
+	NULL,			/* key_up */
+	NULL,			/* touch */
+	NULL,			/* ctrl */
+	NULL			/* joy */
 };
 
 #endif /* AG_WIDGETS */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2020 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2002-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,6 +141,11 @@ AG_ButtonNewS(void *parent, Uint flags, const char *label)
 	if (flags & AG_BUTTON_NO_FOCUS) { SetFocusable(bu, 0); }
 	if (flags & AG_BUTTON_REPEAT) { AG_ButtonSetRepeatMode(bu, 1); }
 
+	if      (flags & AG_BUTTON_ALIGN_LEFT)    { bu->justify = AG_TEXT_LEFT; }
+	else if (flags & AG_BUTTON_ALIGN_RIGHT)   { bu->justify = AG_TEXT_RIGHT; }
+	if      (flags & AG_BUTTON_VALIGN_TOP)    { bu->valign = AG_TEXT_TOP; }
+	else if (flags & AG_BUTTON_VALIGN_BOTTOM) { bu->valign = AG_TEXT_BOTTOM; }
+
 	AG_ObjectAttach(parent, bu);
 	return (bu);
 }
@@ -201,42 +206,9 @@ MouseSpinDelay(AG_Timer *_Nonnull to, AG_Event *_Nonnull event)
 }
 
 static void
-MouseButtonUp(AG_Event *_Nonnull event)
+MouseButtonDown(void *obj, AG_MouseButton button, int x, int y)
 {
-	AG_Button *bu = AG_BUTTON_SELF();
-	void *pState;
-	const int button = AG_INT(1);
-
-	if (button != AG_MOUSE_LEFT) {
-		return;
-	}
-
-	bu->flags &= ~(AG_BUTTON_PRESSING);
-
-	if (bu->repeat) {
-		AG_DelTimer(bu, &bu->repeat->ivalTo);
-		AG_DelTimer(bu, &bu->repeat->delayTo);
-	}
-	if (AG_WidgetDisabled(bu))
-		return;
-
-	if ((bu->flags & AG_BUTTON_STICKY) == 0) {
-		AG_Variable *V;
-
-		V = AG_GetVariable(bu, "state", &pState);
-		if (GetState(bu, V, pState)) {
-		    	SetState(bu, V, pState, 0);
-			AG_PostEvent(bu, "button-pushed", "%i", 0);
-		}
-		AG_UnlockVariable(V);
-	}
-}
-
-static void
-MouseButtonDown(AG_Event *_Nonnull event)
-{
-	AG_Button *bu = AG_BUTTON_SELF();
-	const int button = AG_INT(1);
+	AG_Button *bu = obj;
 	AG_Variable *V;
 	void *pState;
 	int newState;
@@ -270,12 +242,42 @@ MouseButtonDown(AG_Event *_Nonnull event)
 }
 
 static void
-KeyUp(AG_Event *_Nonnull event)
+MouseButtonUp(void *obj, AG_MouseButton button, int x, int y)
 {
-	AG_Button *bu = AG_BUTTON_SELF();
+	AG_Button *bu = obj;
+	void *pState;
+
+	if (button != AG_MOUSE_LEFT)
+		return;
+
+	bu->flags &= ~(AG_BUTTON_PRESSING);
+
+	if (bu->repeat) {
+		AG_DelTimer(bu, &bu->repeat->ivalTo);
+		AG_DelTimer(bu, &bu->repeat->delayTo);
+	}
+	if (AG_WidgetDisabled(bu))
+		return;
+
+	if ((bu->flags & AG_BUTTON_STICKY) == 0) {
+		AG_Variable *V;
+
+		V = AG_GetVariable(bu, "state", &pState);
+		if (GetState(bu, V, pState)) {
+		    	SetState(bu, V, pState, 0);
+			AG_PostEvent(bu, "button-pushed", "%i", 0);
+		}
+		AG_UnlockVariable(V);
+	}
+}
+
+
+static void
+KeyUp(void *obj, AG_KeySym ks, AG_KeyMod km, AG_Char ch)
+{
+	AG_Button *bu = obj;
 	AG_Variable *V;
 	void *pState;
-	const int keysym = AG_INT(1);
 	
 	if (AG_WidgetDisabled(bu))
 		return;
@@ -284,14 +286,16 @@ KeyUp(AG_Event *_Nonnull event)
 		AG_DelTimer(bu, &bu->repeat->delayTo);
 		AG_DelTimer(bu, &bu->repeat->ivalTo);
 	}
-	if (keysym != AG_KEY_RETURN &&		/* TODO AG_Action */
-	    keysym != AG_KEY_KP_ENTER &&
-	    keysym != AG_KEY_SPACE) {
+	if (ks != AG_KEY_RETURN &&		/* TODO AG_Action */
+	    ks != AG_KEY_KP_ENTER &&
+	    ks != AG_KEY_SPACE) {
 		return;
 	}
-	V = AG_GetVariable(bu, "state", &pState);
-	SetState(bu, V, pState, 0);
-	AG_UnlockVariable(V);
+	if ((bu->flags & AG_BUTTON_STICKY) == 0) {
+		V = AG_GetVariable(bu, "state", &pState);
+		SetState(bu, V, pState, 0);
+		AG_UnlockVariable(V);
+	}
 
 	if (bu->flags & AG_BUTTON_KEYDOWN) {
 		bu->flags &= ~(AG_BUTTON_KEYDOWN);
@@ -300,32 +304,93 @@ KeyUp(AG_Event *_Nonnull event)
 }
 
 static void
-KeyDown(AG_Event *_Nonnull event)
+KeyDown(void *obj, AG_KeySym ks, AG_KeyMod km, AG_Char ch)
 {
-	AG_Button *bu = AG_BUTTON_SELF();
+	AG_Button *bu = obj;
 	AG_Variable *V;
 	void *pState;
-	const int keysym = AG_INT(1);
 	
 	if (AG_WidgetDisabled(bu)) {
 		return;
 	}
-	if (keysym != AG_KEY_RETURN &&		/* TODO AG_Action */
-	    keysym != AG_KEY_KP_ENTER &&
-	    keysym != AG_KEY_SPACE) {
+	if (ks != AG_KEY_RETURN &&		/* TODO AG_Action */
+	    ks != AG_KEY_KP_ENTER &&
+	    ks != AG_KEY_SPACE) {
 		return;
 	}
+	
 	V = AG_GetVariable(bu, "state", &pState);
-	SetState(bu, V, pState, 1);
-	AG_PostEvent(bu, "button-pushed", "%i", 1);
+	if (bu->flags & AG_BUTTON_STICKY) {
+		const int newState = !GetState(bu, V, pState);
+		SetState(bu, V, pState, newState);
+		AG_PostEvent(bu, "button-pushed", "%i", newState);
+	} else {
+		V = AG_GetVariable(bu, "state", &pState);
+		SetState(bu, V, pState, 1);
+		AG_PostEvent(bu, "button-pushed", "%i", 1);
+	}
 	AG_UnlockVariable(V);
 
 	bu->flags |= AG_BUTTON_KEYDOWN;
-
 	if (bu->repeat) {
 		AG_DelTimer(bu, &bu->repeat->ivalTo);
 		AG_AddTimer(bu, &bu->repeat->delayTo, agMouseSpinDelay,
 		    MouseSpinDelay, NULL);
+	}
+}
+
+static void
+Ctrl(void *obj, void *inputDevice, const AG_DriverEvent *dev)
+{
+	AG_Button *bu = obj;
+	AG_Variable *V;
+	void *pState;
+
+	if (AG_WidgetDisabled(bu))
+		return;
+
+	if (dev->type == AG_DRIVER_CTRL_BUTTON_DOWN &&
+	    dev->ctrlButton.which == AG_CTRL_BUTTON_A)
+	{
+		AG_GrabInputDevice(bu, inputDevice);
+		bu->flags |= AG_BUTTON_PRESSING;
+
+		V = AG_GetVariable(bu, "state", &pState);
+		if (bu->flags & AG_BUTTON_STICKY) {
+			const int newState = !GetState(bu,V,pState);
+			SetState(bu, V, pState, newState);
+			AG_PostEvent(bu, "button-pushed", "%i", newState);
+		} else {
+			SetState(bu, V, pState, 1);
+		}
+		AG_UnlockVariable(V);
+
+		if (bu->repeat) {
+			AG_DelTimer(bu, &bu->repeat->ivalTo);
+			AG_AddTimer(bu, &bu->repeat->delayTo,
+			    agMouseSpinDelay,
+			    MouseSpinDelay,NULL);
+		}
+	} else if (dev->type == AG_DRIVER_CTRL_BUTTON_UP &&
+	           dev->ctrlButton.which == AG_CTRL_BUTTON_A)
+	{
+		AG_UngrabInputDevice(bu, inputDevice);
+		bu->flags &= ~(AG_BUTTON_PRESSING);
+
+		if (bu->repeat) {
+			AG_DelTimer(bu, &bu->repeat->ivalTo);
+			AG_DelTimer(bu, &bu->repeat->delayTo);
+		}
+		if ((bu->flags & AG_BUTTON_STICKY) == 0) {
+			AG_Variable *V;
+
+			V = AG_GetVariable(bu, "state", &pState);
+			if (GetState(bu, V, pState)) {
+			    	SetState(bu, V, pState, 0);
+				AG_PostEvent(bu, "button-pushed", "%i", 0);
+			}
+			AG_UnlockVariable(V);
+		}
 	}
 }
 
@@ -363,8 +428,6 @@ Init(void *_Nonnull obj)
 	AG_Button *bu = obj;
 
 	WIDGET(bu)->flags |= AG_WIDGET_FOCUSABLE |
-	                     AG_WIDGET_UNFOCUSED_MOTION |
-			     AG_WIDGET_UNFOCUSED_BUTTONUP |
 			     AG_WIDGET_USE_TEXT |
 			     AG_WIDGET_USE_MOUSEOVER;
 
@@ -382,11 +445,6 @@ Init(void *_Nonnull obj)
 	AG_AddEvent(bu, "widget-shown", OnShow, NULL);
 	AG_AddEvent(bu, "font-changed", StyleChanged, NULL);
 	AG_AddEvent(bu, "palette-changed", StyleChanged, NULL);
-
-	AG_SetEvent(bu, "mouse-button-up", MouseButtonUp, NULL);
-	AG_SetEvent(bu, "mouse-button-down", MouseButtonDown, NULL);
-	AG_SetEvent(bu, "key-up", KeyUp, NULL);
-	AG_SetEvent(bu, "key-down", KeyDown, NULL);
 
 	AG_BindInt(bu, "state", &bu->state);
 }
@@ -469,6 +527,7 @@ Draw(void *_Nonnull p)
 	AG_Button *bu = p;
 	AG_Variable *V;
 	void *pState;
+	AG_Surface *S;
 	int surface, pressed, x=0, y=0;
 	
 	V = AG_GetVariable(bu, "state", &pState);
@@ -493,16 +552,17 @@ Draw(void *_Nonnull p)
 		surface = bu->surfaceLbl;
 	}
 
+	S = WSURFACE(bu,surface);
+
 	switch (bu->justify) {
 	case AG_TEXT_LEFT:
 		x = WIDGET(bu)->paddingLeft;    
 		break;
 	case AG_TEXT_CENTER:
-		x = (WIDTH(bu) >> 1) - (WSURFACE(bu,surface)->w >> 1);
+		x = (WIDTH(bu) >> 1) - (S->w >> 1);
 		break;
 	case AG_TEXT_RIGHT:
-		x = WIDTH(bu) - WSURFACE(bu,surface)->w -
-		    WIDGET(bu)->paddingRight;
+		x = WIDTH(bu) - S->w - WIDGET(bu)->paddingRight;
 		break;
 	}
 	switch (bu->valign) {
@@ -510,13 +570,14 @@ Draw(void *_Nonnull p)
 		y = WIDGET(bu)->paddingTop;
 		break;
 	case AG_TEXT_MIDDLE:
-		y = (HEIGHT(bu) >> 1) - (WSURFACE(bu,surface)->h >> 1);
+		y = (HEIGHT(bu) >> 1) - (S->h >> 1);
 		break;
 	case AG_TEXT_BOTTOM:
-		y = HEIGHT(bu) - WSURFACE(bu,surface)->h -
-		    WIDGET(bu)->paddingBottom;
+		y = HEIGHT(bu) - S->h - WIDGET(bu)->paddingBottom;
 		break;
 	}
+	if (y < 0) { y = 0; }
+
 	if (pressed) {
 		x++;
 		y++;
@@ -535,7 +596,7 @@ Draw(void *_Nonnull p)
 	}
 
 	if (WIDTH(bu) < bu->wReq || HEIGHT(bu) < bu->hReq) {
-		AG_PushClipRect(bu, &WIDGET(bu)->r);
+		AG_PushClipRectInner(bu, &WIDGET(bu)->r);
 		AG_WidgetBlitSurface(bu, surface, x,y);
 		AG_PopClipRect(bu);
 	} else {
@@ -797,7 +858,15 @@ AG_WidgetClass agButtonClass = {
 	},
 	Draw,
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	MouseButtonDown,
+	MouseButtonUp,
+	NULL,			/* mouse_motion */
+	KeyDown,
+	KeyUp,
+	NULL,			/* touch */
+	Ctrl,
+	NULL			/* joy */
 };
 
 #endif /* AG_WIDGETS */

@@ -202,7 +202,7 @@ CreateMoreCheckboxes(AG_Event *_Nonnull event)
 	AG_CheckboxNew(box, 0, "Wilbern Cobb");
 
 	AG_PaneMoveDivider(pane, pane->dx + 50);
-	AG_SetStyle(box, "font-size", "80%");
+	AG_SetFontSize(box, "80%");
 }
 
 static void
@@ -261,11 +261,12 @@ TestGUI(void *obj, AG_Window *win)
 /*	AG_PaneMoveDividerPct(hPane, 45); */
 	div = hPane->div[0];
 
+	/* Load a Windows bitmap file and display it in an AG_Pixmap(3). */
 	if (AG_ConfigFind(AG_CONFIG_PATH_DATA, "agar-1.bmp", path, sizeof(path)) == 0) {
 		if ((S = AG_SurfaceFromBMP(path)) == NULL) {
 			S = AG_TextRender(AG_GetError());
 		}
-		AG_PixmapFromSurface(div, 0, S);
+		AG_PixmapFromSurface(div, AG_PIXMAP_HFILL | AG_PIXMAP_RESCALE, S);
 		AG_SurfaceFree(S);
 	} else {
 		S = AG_TextRender(AG_GetError());
@@ -273,34 +274,56 @@ TestGUI(void *obj, AG_Window *win)
 		AG_SurfaceFree(S);
 	}
 
-	if (AG_ConfigFind(AG_CONFIG_PATH_DATA, "sq-agar.bmp", path, sizeof(path)) == 0) {
-		AG_Surface *S;
-		int i, x,y;
+	/* Load a 16-bit/color PNG file and display it in an AG_Pixmap(3). */
+#if AG_MODEL == AG_LARGE
+	if (AG_ConfigFind(AG_CONFIG_PATH_DATA, "agar64.png", path, sizeof(path)) == 0) {
+		if ((S = AG_SurfaceFromPNG(path)) == NULL) {
+			S = AG_TextRender(AG_GetError());
+		} else {
+#if 0
+			int x,y;
 
-		S = AG_SurfaceFromFile(path);
+/*			S->flags |= AG_SURFACE_TRACE; */
 
-		hBox = AG_BoxNewHoriz(div, AG_BOX_HOMOGENOUS | AG_BOX_HFILL);
-		for (i = 0; i < 5; i++) {
-			for (y = 0; y < (int)S->h; y++) {
-				for (x = 0; x < (int)S->w; x++) {
+			/*
+			 * Extract components from surface-encoded pixels
+			 * and re-encode the pixels from the extracted
+			 * components.
+			 * 
+			 * If pixel operations are working as expected on
+			 * 16-bit/color surfaces, the following code should be
+			 * a no-op and the original image appear unchanged.
+			 */
+			for (y = 0; y < S->h; y++) {
+				for (x = 0; x < S->w; x++) {
 					AG_Pixel px = AG_SurfaceGet(S, x,y);
-					AG_Color c ;
-						
+					AG_Color c;
+
 					AG_GetColor(&c, px, &S->format);
-					c.a /= (1+i);
+#if 0
+					if (c.a > 0) {
+						c.r = AG_COLOR_LAST - (AG_Component)(((float)x / (float)S->w) * AG_COLOR_LASTD);
+						c.g = AG_COLOR_LAST - (AG_Component)(((float)x / (float)S->w) * AG_COLOR_LASTD);
+						c.b = AG_COLOR_LAST - (AG_Component)(((float)x / (float)S->w) * AG_COLOR_LASTD);
+					}
+#endif
 					AG_SurfacePut(S, x,y,
 					    AG_MapPixel(&S->format, &c));
 				}
 			}
-			AG_PixmapFromSurface(hBox, 0, S);
+#endif
 		}
+		AG_PixmapFromSurface(div, AG_PIXMAP_HFILL | AG_PIXMAP_RESCALE, S);
 		AG_SurfaceFree(S);
 	} else {
 		S = AG_TextRender(AG_GetError());
 		AG_PixmapFromSurface(div, 0, S);
 		AG_SurfaceFree(S);
 	}
-	
+#endif /* AG_LARGE */
+
+	AG_SeparatorNewHoriz(div);
+
 	/*
 	 * AG_Label(3) displays either a static text label, or a dynamically
 	 * updated one. Polled (dynamic) labels use a special format documented
@@ -318,7 +341,7 @@ TestGUI(void *obj, AG_Window *win)
 		    AGSI_LEAGUE_SPARTAN AGSI_CYAN "%s" AGSI_RST ")",
 		    av.major, av.minor, av.patch,
 		    av.release ? av.release : "dev");
-		AG_SetStyle(lbl, "font-size", "120%");
+		AG_SetFontSize(lbl, "120%");
 		AG_LabelJustify(lbl, AG_TEXT_CENTER);
 
 		/* A dynamically-updated label. */
@@ -331,7 +354,13 @@ TestGUI(void *obj, AG_Window *win)
 		    &AGWIDGET(win)->w,
 		    &AGWIDGET(win)->h);
 		AG_LabelSizeHint(lbl, 1, "<This [XXXX] Window is at 0000,0000 (0000 x 0000). >");
-		AG_SetStyle(lbl, "font-size", "110%");
+		AG_SetFontSize(lbl, "110%");
+
+		/* Show an example of a bitmap font (agar-minimal.agbf) */
+		AG_LabelNew(div, AG_LABEL_HFILL,
+		    "Here is a bitmap font: " 
+		    AGSI_AGAR_MINIMAL "Agar Minimal Hello!" AGSI_RST
+		    " (12px)");
 	}
 
 	/*
@@ -400,7 +429,7 @@ TestGUI(void *obj, AG_Window *win)
 			btn = AG_ButtonNewFn(vBox, 0, "Create More ...",
 			    CreateMoreCheckboxes, "%p,%p", vBox, vPane);
 
-			AG_SetStyle(btn, "padding", "2");
+			AG_SetPadding(btn, "2");
 		}
 	}
 
@@ -495,6 +524,8 @@ TestGUI(void *obj, AG_Window *win)
 		num = AG_NumericalNewS(div, AG_NUMERICAL_HFILL, NULL,
 		    "Bound Integer: ");
 		AG_BindInt(num, "value", &myVal);
+		AG_SetInt(num, "min", -100);
+		AG_SetInt(num, "max", +100);
 
 		AG_LabelNewS(div, 0, "Scrollbar:");
 		sb = AG_ScrollbarNewHoriz(div, AG_SCROLLBAR_EXCL |
@@ -527,6 +558,37 @@ TestGUI(void *obj, AG_Window *win)
 	}
 
 	/*
+	 * Load the square agar logo, perform pixel manipulation on the loaded
+	 * surface (divide alpha of red-dominant pixels) and display the results
+	 * in AG_Pixmap(3) widgets.
+	 */
+	if (AG_ConfigFind(AG_CONFIG_PATH_DATA, "sq-agar.bmp", path, sizeof(path)) == 0) {
+		AG_Surface *S;
+		int i, x,y;
+
+		S = AG_SurfaceFromFile(path);
+
+		hBox = AG_BoxNewHoriz(div, AG_BOX_HOMOGENOUS | AG_BOX_HFILL);
+		for (i = 0; i < 5; i++) {
+			for (y = 0; y < (int)S->h; y++) {
+				for (x = 0; x < (int)S->w; x++) {
+					AG_Pixel px = AG_SurfaceGet(S, x,y);
+					AG_Color c ;
+						
+					AG_GetColor(&c, px, &S->format);
+					if (c.r > AG_MAX(c.g, c.b)) {
+						c.a /= (1+i);
+					}
+					AG_SurfacePut(S, x,y,
+					    AG_MapPixel(&S->format, &c));
+				}
+			}
+			AG_PixmapFromSurface(hBox, 0, S);
+		}
+		AG_SurfaceFree(S);
+	}
+
+	/*
 	 * Notebook provides multiple containers which can be selected by
 	 * the user.
 	 */
@@ -543,47 +605,84 @@ TestGUI(void *obj, AG_Window *win)
 		m = AG_MenuNode(menu->root, "File", NULL);
 		{
 			AG_MenuActionKb(m,
-			    AGSI_ALGUE AGSI_YEL AGSI_GEAR AGSI_RST
-			    " Agar Preferences...", NULL,
-			    AG_KEY_P, AG_KEYMOD_CTRL,
-			    Preferences, NULL);
-
-			AG_MenuActionKb(m,
-			    AGSI_ALGUE AGSI_YEL AGSI_CLOSE_X AGSI_RST
-			    " Close this test", NULL,
-			    AG_KEY_W, AG_KEYMOD_CTRL,
+			    AGSI_IDEOGRAM AGSI_CLOSE_X AGSI_RST
+			    " Close Test", NULL,
+			    AG_KEY_W, AGSI_WINCMD,
 			    AGWINCLOSE(win));
 		}
+
+		m = AG_MenuNode(menu->root, "Edit", NULL);
+		{
+			AG_MenuActionKb(m,
+			    AGSI_IDEOGRAM AGSI_GEAR AGSI_RST
+			    " Preferences...", NULL,
+			    AG_KEY_P, AGSI_WINCMD,
+			    Preferences, NULL);
+		}
+
 		m = AG_MenuNode(menu->root, "Test Menu", NULL);
 		{
-			/* A disabled menu item */
 			AG_MenuState(m, 0);
-			AG_MenuNode(m, "Disabled Submenu A", agIconMagnifier.s);
+			AG_MenuNode(m,
+			    AGSI_IDEOGRAM AGSI_DIP_CHIP AGSI_RST
+			    " Disabled Submenu",
+			    NULL);
 			AG_MenuState(m, 1);
 			AG_MenuSeparator(m);
 
 			/* Menu item with child entries */
-			mSub = AG_MenuNode(m, "Submenu B", agIconGear.s);
-			AG_MenuAction(mSub, "Submenu C", agIconLoad.s,
-			    TestMenuFn, "%s", "Submenu C selected!");
-			AG_MenuAction(mSub, "Submenu D", agIconSave.s,
-			    TestMenuFn, "%s", "Submenu D selected!");
-			AG_MenuAction(mSub, "Submenu E", agIconTrash.s,
-			    TestMenuFn, "%s", "Submenu E selected!");
-			AG_MenuIntBool(mSub, "Togglable Binding #1", agIconUp.s, &myInt[0], 0);
+			mSub = AG_MenuNode(m,
+			    AGSI_IDEOGRAM AGSI_GAME_CONTROLLER AGSI_RST
+			    " Try Me!",
+			    NULL);
+			AG_MenuAction(mSub,
+			    AGSI_IDEOGRAM AGSI_ALICE AGSI_RST
+			    " Alice",
+			    NULL,
+			    TestMenuFn, "%s", "Hi Alice!");
+
+			AG_MenuAction(mSub,
+			    AGSI_IDEOGRAM AGSI_BOB AGSI_RST
+			    " Bob", NULL,
+			    TestMenuFn, "%s", "Hi Bob!");
+
+			AG_MenuAction(mSub,
+			    AGSI_IDEOGRAM AGSI_PILE_OF_POO AGSI_RST
+			    " Pile of Poo", NULL,
+			    TestMenuFn, "%s", "Pile of Poo!");
+
+			AG_MenuIntBool(mSub, "Togglable Binding #1 ",
+			    NULL, &myInt[0], 0);
+			AG_MenuIntBool(mSub, "Inverted Binding #1 ",
+			    NULL, &myInt[0], 1);
 
 			AG_MenuSeparator(m);
-			AG_MenuSectionS(m, "Non-selectable text");
+			AG_MenuSectionS(m,
+			    AGSI_IDEOGRAM AGSI_VACUUM_TUBE AGSI_RST
+			    AGSI_ITALIC " Non Selectable Text");
 			AG_MenuSeparator(m);
 
-			AG_MenuIntBool(m, "Togglable Binding #1", agIconUp.s, &myInt[0], 0);
-			AG_MenuIntBool(m, "Togglable Binding #2", agIconDown.s, &myInt[1], 0);
-			AG_MenuIntBool(m, "Inverted Binding #2", agIconDown.s, &myInt[1], 1);
+			AG_MenuIntBool(m,
+			    "Togglable Binding #1\t"
+			    AGSI_IDEOGRAM AGSI_AGAR_AG AGSI_RST,
+			    NULL, &myInt[0], 0);
+			AG_MenuIntBool(m,
+			    "Togglable Binding #2\t"
+			    AGSI_IDEOGRAM AGSI_AGAR_AR AGSI_RST,
+			    NULL, &myInt[1], 0);
+
+			AG_MenuIntBool(m, "Inverted Binding #2", NULL,
+			    &myInt[1], 1);
 		}
 
 		nb = AG_NotebookNew(hPane->div[1], AG_NOTEBOOK_EXPAND);
 
-		nt = AG_NotebookAdd(nb, "Some table", AG_BOX_VERT);
+		nt = AG_NotebookAdd(nb,
+		    "Example Table\n"
+		    AGSI_IDEOGRAM AGSI_MATH_X_EQUALS AGSI_RST
+		    AGSI_ITALIC "sin" AGSI_RST "(x), "
+		    AGSI_ITALIC "cos" AGSI_RST "(x)",
+		    AG_BOX_VERT);
 		{
 			float f;
 
@@ -599,8 +698,9 @@ TestGUI(void *obj, AG_Window *win)
 			AG_TableAddCol(table, "sin(x)", "33%", NULL);
 			AG_TableAddCol(table, "cos(x)", "33%", NULL);
 
-			AG_SetStyle(table, "font-family", "cm-sans");
-			AG_SetStyle(table, "font-size", "120%");
+			AG_SetFontFamily(table, "charter");
+			AG_SetFontSize(table, "120%");
+			AG_SetColor(table, "#666");
 
 			for (f = 0.0f; f < 60.0f; f += 0.3f) {
 				/*
@@ -620,14 +720,15 @@ TestGUI(void *obj, AG_Window *win)
 				};
 				AG_Radio *rad;
 
-				rad = AG_RadioNewUint(nt, 0, selModes, (Uint *)&table->selMode);
+				rad = AG_RadioNewUint(nt, 0, selModes,
+				    (Uint *)&table->selMode);
 				AG_RadioSetDisposition(rad, AG_RADIO_HORIZ);
-				AG_SetStyle(rad, "font-size", "80%");
+				AG_SetFontSize(rad, "80%");
 			}
 			
 
 			vBox = AG_BoxNewVert(nt, 0);
-			AG_SetStyle(vBox, "font-size", "80%");
+			AG_SetFontSize(vBox, "80%");
 			{
 				AG_CheckboxNewFlag(vBox, 0, "Select multiple\n(with ctrl/shift)",
 				    &table->flags, AG_TABLE_MULTI);
@@ -645,7 +746,11 @@ TestGUI(void *obj, AG_Window *win)
 			AG_AddEvent(table, "key-down", TableKeyDown, NULL);
 		}
 		
-		nt = AG_NotebookAdd(nb, "Some text", AG_BOX_VERT);
+		nt = AG_NotebookAdd(nb,
+		    AGSI_WHT AGSI_ITALIC "\"Loss of Breath\"" AGSI_RST
+		    AGSI_LEAGUE_GOTHIC "\nBy Edgar Allan Poe  " AGSI_RST
+		    AGSI_IDEOGRAM AGSI_EDGAR_ALLAN_POE AGSI_RST,
+		    AG_BOX_VERT);
 		{
 			char path[AG_PATHNAME_MAX];
 			AG_Size size, bufSize;
@@ -699,8 +804,31 @@ TestGUI(void *obj, AG_Window *win)
 			    SetWordWrap, "%p", tbox);
 		}
 		AG_NotebookSelect(nb, nt);
-		
-		nt = AG_NotebookAdd(nb, "Empty tab", AG_BOX_VERT);
+
+		nt = AG_NotebookAdd(nb, "Colors\n"
+		    AGSI_RED AGSI_BOLD "R" AGSI_RST
+		    AGSI_GRN AGSI_BOLD "G" AGSI_RST
+		    AGSI_BLU AGSI_BOLD "B" AGSI_RST,
+		    AG_BOX_VERT);
+		AGBOX(nt)->flags |= AG_BOX_HOMOGENOUS;
+		AG_SetPadding(nt, "10");
+		{
+			AG_HSVPal *pal;
+			const Uint flags = AG_HSVPAL_HFILL | AG_HSVPAL_SHOW_RGB;
+
+			pal = AG_HSVPalNew(nt, flags);
+			pal->h = 0.0f;
+			pal->s = 1.0f;
+			pal->v = 1.0f;
+			pal = AG_HSVPalNew(nt, flags);
+			pal->h = 120.0f;
+			pal->s = 1.0f;
+			pal->v = 1.0f;
+			pal = AG_HSVPalNew(nt, flags);
+			pal->h = 240.0f;
+			pal->s = 1.0f;
+			pal->v = 1.0f;
+		}
 	}
 	return (0);
 }
@@ -725,6 +853,7 @@ Destroy(void *obj)
 }
 
 const AG_TestCase widgetsTest = {
+	AGSI_IDEOGRAM AGSI_POPULATED_WINDOW AGSI_RST,
 	"widgets",
 	N_("Display various Agar-GUI widgets"),
 	"1.6.0",

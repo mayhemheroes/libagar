@@ -78,6 +78,39 @@ CloseObject(AG_Event *_Nonnull event)
 	if (TAILQ_EMPTY(&sgEditorWindows))
 		AG_Terminate(0);
 }
+
+static AG_Window *
+SG_GUI_PromptOptions(AG_Button **bOpts, Uint nbOpts, const char *fmt, ...)
+{
+	char *text;
+	AG_Window *win;
+	AG_Box *bo;
+	va_list ap;
+	Uint i;
+
+	va_start(ap, fmt);
+	Vasprintf(&text, fmt, ap);
+	va_end(ap);
+
+	if ((win = AG_WindowNew(AG_WINDOW_MODAL | AG_WINDOW_NOTITLE |
+	                        AG_WINDOW_NORESIZE)) == NULL) {
+		AG_FatalError(NULL);
+	}
+	win->wmType = AG_WINDOW_WM_DIALOG;
+	AG_WindowSetPosition(win, AG_WINDOW_CENTER, 0);
+	AG_SetSpacing(win, "8");
+
+	AG_LabelNewS(win, 0, text);
+	free(text);
+
+	bo = AG_BoxNew(win, AG_BOX_HORIZ, AG_BOX_HOMOGENOUS | AG_BOX_HFILL);
+	for (i = 0; i < nbOpts; i++) {
+		bOpts[i] = AG_ButtonNewS(bo, 0, "XXXXXXXXXXX");
+	}
+	AG_WindowShow(win);
+	return (win);
+}
+
 static void
 WindowClose(AG_Event *_Nonnull event)
 {
@@ -94,8 +127,8 @@ WindowClose(AG_Event *_Nonnull event)
 	}
 	if (wOther == NULL &&		/* Last editor window for this object */
 	    AG_ObjectChanged(obj)) {
-		wDlg = AG_TextPromptOptions(bOpts, 3,
-		    _("Save changes to %s?"), OBJECT(obj)->name);
+		wDlg = SG_GUI_PromptOptions(bOpts, 3, _("Save changes to %s?"),
+		    OBJECT(obj)->name);
 		AG_WindowAttach(win, wDlg);
 
 		AG_ButtonText(bOpts[0], _("Save"));
@@ -374,9 +407,11 @@ SelectedFont(AG_Event *_Nonnull event)
 {
 	AG_Window *win = AG_WINDOW_PTR(1);
 
-	AG_SetString(agConfig, "font.face",  OBJECT(agDefaultFont)->name);
-	AG_SetInt(agConfig, "font.size", agDefaultFont->spec.size);
-	AG_SetUint(agConfig, "font.flags", agDefaultFont->flags);
+	Strlcpy(agConfig->fontFace, OBJECT(agDefaultFont)->name,
+	    sizeof(agConfig->fontFace));
+	agConfig->fontSize = agDefaultFont->spec.size;
+	agConfig->fontFlags = agDefaultFont->flags;
+
 	(void)AG_ConfigSave();
 
 	AG_TextWarning("default-font-changed",
@@ -433,13 +468,13 @@ SG_GUI_CreateNewDlg(AG_Event *event)
 		return;
 	}
 	AG_WindowSetCaptionS(win, "sgedit");
-	AG_SetStyle(win, "padding", "20");
+	AG_SetPadding(win, "20");
 
 	lbl = AG_LabelNewS(win, AG_LABEL_HFILL, "sgedit");
-	AG_SetStyle(lbl, "font-size", "250%");
-	AG_SetStyle(lbl, "text-color", "#aaeeff");
-	AG_SetStyle(lbl, "font-weight", "bold");
 	AG_LabelJustify(lbl, AG_TEXT_CENTER);
+	AG_SetFontSize(lbl, "250%");
+	AG_SetTextColor(lbl, "#aaeeff");
+	AG_SetFontWeight(lbl, "bold");
 
 	AG_LabelNewS(win, 0, _("Create New:"));
 

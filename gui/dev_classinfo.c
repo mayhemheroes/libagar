@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2022 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2008-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,15 +69,15 @@ AG_DEV_ClassInfo(void)
 	}
 	AG_WindowSetCaptionS(win, _("Registered classes"));
 	AG_WindowSetPosition(win, AG_WINDOW_TL, 0);
-	AG_SetStyle(win, "font-size", "90%");
+	AG_SetFontSize(win, "90%");
 
 	tbl = AG_TableNewPolled(win, AG_TABLE_EXPAND, PollClasses, NULL);
 	AG_TableAddCol(tbl, _("Name"), "<XXXXXXXXXXXXXXX>", NULL);
 	AG_TableAddCol(tbl, _("Version"), "<XXX.XXX>", NULL);
 	AG_TableAddCol(tbl, _("Size"), "<XXXX>", NULL);
-	AG_TableAddCol(tbl, _("Modules"), "<XXXXXXX>", NULL);
+	AG_TableAddCol(tbl, _("Modules"), "<XXXXXX>", NULL);
 	AG_TableAddCol(tbl, _("Hierarchy"), NULL, NULL);
-	AG_TableSizeHint(tbl, 600, 20);
+	AG_TableSizeHint(tbl, 680, 30);
 
 	AG_WindowShow(win);
 	return (win);

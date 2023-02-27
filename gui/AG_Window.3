@@ -34,7 +34,7 @@
 #include <agar/gui.h>
 .Ed
 .Sh DESCRIPTION
-.\" IMAGE(http://libagar.org/widgets/AG_DriverGLX.png, "Multiple Agar windows")
+.\" IMAGE(/widgets/AG_DriverGLX.png, "Multiple Agar windows")
 The
 .Nm
 object describes an Agar window, the base container for Agar widgets.
@@ -613,7 +613,10 @@ places the focus over the widget following (or preceeding if
 .Fa reverse
 is 1) the widget currently holding focus inside of
 .Fa win .
-By default, Agar maps the "TAB" key to this function.
+By default, Agar maps the TAB key to this function.
+The
+.Va agDrivers
+VFS must be locked.
 .Pp
 The
 .Fn AG_CloseFocusedWindow

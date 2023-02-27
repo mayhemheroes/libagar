@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2022 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2001-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,20 +60,24 @@ const char *agStyleAttributes[] = {
 	/*
 	 * Typography
 	 */
-	"font-family",      /* Font face or filename */
-	"font-size",        /* Font size (in pts, px or %) */
-	"font-weight",      /* Boldness (normal bold !parent) */
-	"font-style",       /* Style (normal italic upright-italic !parent) */
-	"font-stretch",     /* Width variant (normal condensed semi-condensed !parent) */
+	"font-family",  /* Font face or filename */
+	"font-size",    /* Font size (in pt, px or %) */
+	"font-weight",  /* Boldness (thin | extralight | light | normal |
+	                             semibold | bold | extrabold | black |
+	                             !parent) */
+	"font-style",   /* Style (normal | oblique | italic | !parent) */
+	"font-stretch", /* Width variant (normal | ultracondensed | condensed |
+	                                  semicondensed semiexpanded expanded |
+	                                  ultraexpanded !parent) */
 	/*
 	 * Box Model
 	 */
-	"margin",           /* Margin (between border & outer bounding box) */
-	"padding",          /* Padding (px between content & border) */
+	"margin",        /* Margin (space between border & outer bounding box) */
+	"padding",       /* Padding (space between content & border) */
 	/*
 	 * Containers
 	 */
-	"spacing",          /* Spacing between elements (px) */
+	"spacing",       /* Spacing between elements (px) */
 	NULL
 };
 
@@ -90,7 +94,7 @@ const char *agWidgetStateNames[] = {
 AG_WidgetPalette agDefaultPalette = {{
 #if AG_MODEL == AG_MEDIUM           /* --- TrueColor --- */
 {       /* unfocused */
-	{125,125,125,255},          /*             color */
+	{120,120,120,255},          /*             color */
 	{  0,  0,  0,  0},          /*  background-color */
 	{240,240,240,255},          /*        text-color */
 	{ 50, 50, 50,255},          /*        line-color */
@@ -110,10 +114,10 @@ AG_WidgetPalette agDefaultPalette = {{
 	{  0,  0,  0,  0}
 }, {
 	/* #focused */
-	{135,135,135,255},          /*             color */
+	{140,140,140,255},          /*             color */
 	{  0,  0,  0,  0},          /*  background-color */
 	{240,240,240,255},          /*        text-color */
-	{ 50, 50, 60,255},          /*        line-color */
+	{ 50, 50, 70,255},          /*        line-color */
 	{110,110,110,255},          /*        high-color */
 	{ 70, 70, 70,255},          /*         low-color */
 	{  0,  0,120,255},          /*   selection-color */
@@ -132,7 +136,7 @@ AG_WidgetPalette agDefaultPalette = {{
 #elif AG_MODEL == AG_LARGE                /* --- DeepColor --- */
 {
 	/* unfocused */
-	{0x7d7d,0x7d7d,0x7d7d,0xffff},    /*             color */
+	{0x7878,0x7878,0x7878,0xffff},    /*             color */
 	{0x0000,0x0000,0x0000,0x0000},    /*  background-color */
 	{0xf0f0,0xf0f0,0xf0f0,0xffff},    /*        text-color */
 	{0x3232,0x3232,0x3232,0xffff},    /*        line-color */
@@ -152,10 +156,10 @@ AG_WidgetPalette agDefaultPalette = {{
 	{0x0000,0x0000,0x0000,0x0000}
 }, {
 	/* #focused */
-	{0x8787,0x8787,0x8787,0xffff},    /*             color */
+	{0x8c8c,0x8c8c,0x8c8c,0xffff},    /*             color */
 	{0x0000,0x0000,0x0000,0x0000},    /*  background-color */
 	{0xf0f0,0xf0f0,0xf0f0,0xffff},    /*        text-color */
-	{0x3232,0x3232,0x3c3c,0xffff},    /*        line-color */
+	{0x3232,0x3232,0x4646,0xffff},    /*        line-color */
 	{0xaaaa,0xaaaa,0xaaaa,0xffff},    /*        high-color */
 	{0x4646,0x4646,0x4646,0xffff},    /*         low-color */
 	{0x0000,0x0000,0x7878,0xffff},    /*   selection-color */
@@ -346,6 +350,7 @@ OnDetach(AG_Event *_Nonnull event)
 	AG_Widget *wid = AG_WIDGET_SELF();
 	const void *parent = AG_PTR(1);
 	AG_Widget *chld;
+	AG_InputDevice *id;
 
 	/*
 	 * Forward the "detached" event to child widgets.
@@ -375,6 +380,21 @@ OnDetach(AG_Event *_Nonnull event)
 			wid->textures[id] = 0;
 		}
 	}
+
+	AG_LockVFS(&agInputDevices);
+detach_input_devs:
+	AGOBJECT_FOREACH_CHILD(id, &agInputDevices, ag_input_device) {
+		int i;
+
+		for (i = 0; i < id->nWidGrab; i++) {
+			if (id->widGrab[i] == wid) {
+				Debug(wid, "Ungrabbing %s on detach\n", OBJECT(id)->name);
+				AG_UngrabInputDevice(wid, id);
+				goto detach_input_devs;
+			}
+		}
+	}
+	AG_UnlockVFS(&agInputDevices);
 
 	if (AG_OfClass(parent, "AG_Widget:*") &&
 	    AG_OfClass(wid, "AG_Widget:*")) {
@@ -1627,8 +1647,9 @@ void
 AG_WidgetUpdateCoords(void *obj, int x, int y)
 {
 	AG_Widget *wid = obj, *chld;
-	AG_Rect2 rPrev;
-
+#ifdef HAVE_OPENGL
+	const AG_Rect2 rPrev = wid->rView;
+#endif
 	wid->flags &= ~(AG_WIDGET_UPDATE_WINDOW);
 
 	if (wid->drv && AGDRIVER_MULTIPLE(wid->drv) &&
@@ -1636,7 +1657,6 @@ AG_WidgetUpdateCoords(void *obj, int x, int y)
 		x = 0;
 		y = 0;
 	}
-	rPrev = wid->rView;
 	wid->rView.x1 = x;
 	wid->rView.y1 = y;
 	wid->rView.w = wid->w;
@@ -1954,12 +1974,12 @@ AG_WidgetDraw(void *p)
 {
 	AG_Widget *wid = p;
 	Uint flags;
+	int useText;
 
 	AG_OBJECT_ISA(wid, "AG_Widget:*");
 	AG_ObjectLock(wid);
 
 	flags = wid->flags;
-
 	if ((flags & AG_WIDGET_VISIBLE) == 0 ||
 	    (flags & (AG_WIDGET_HIDE | AG_WIDGET_UNDERSIZE)))
 		goto out;
@@ -1969,7 +1989,8 @@ AG_WidgetDraw(void *p)
 	else if (flags & AG_WIDGET_FOCUSED)   { wid->state = AG_FOCUSED_STATE;  }
 	else                                  { wid->state = AG_DEFAULT_STATE;  }
 
-	if (flags & AG_WIDGET_USE_TEXT) {
+	useText = (flags & AG_WIDGET_USE_TEXT);
+	if (useText) {
 		AG_PushTextState();
 		AG_TextFont(wid->font);
 		AG_TextColor(&wid->pal.c[wid->state][AG_TEXT_COLOR]);
@@ -1996,8 +2017,9 @@ AG_WidgetDraw(void *p)
 	if (flags & AG_WIDGET_USE_OPENGL)
 		DrawEpilogueGL(wid);
 #endif
-	if (flags & AG_WIDGET_USE_TEXT)
+	if (useText) {
 		AG_PopTextState();
+	}
 out:
 	AG_ObjectUnlock(wid);
 }
@@ -2235,7 +2257,7 @@ CompileStyleRecursive(AG_Widget *_Nonnull wid, const char *_Nonnull parentFace,
 	}
 
 	/*
-	 * Font style (normal, italic, upright-italic or !parent)
+	 * Font style (normal, oblique, italic or !parent).
 	 */
 	if ((V = AG_AccessVariable(wid, "font-style")) != NULL) {
 		Apply_Font_Style(&fontFlags, parentFontFlags, V->data.s);
@@ -2248,7 +2270,7 @@ CompileStyleRecursive(AG_Widget *_Nonnull wid, const char *_Nonnull parentFace,
 	}
 
 	/*
-	 * Width variant (normal, semi-condensed, condensed or !parent)
+	 * Width variant (normal, semi-condensed, condensed or !parent).
 	 */
 	if ((V = AG_AccessVariable(wid, "font-stretch")) != NULL) {
 		Apply_Font_Stretch(&fontFlags, parentFontFlags, V->data.s);
@@ -2332,12 +2354,12 @@ CompileStyleRecursive(AG_Widget *_Nonnull wid, const char *_Nonnull parentFace,
 		}
 		if (fontNew == NULL) {
 			fontNew = AG_FetchFont(NULL, fontSize, fontFlags);
-			AG_OBJECT_ISA(fontNew, "AG_Font:*");
+			if (fontNew == NULL)
+				AG_Debug(wid, "FetchFont: %s\n", AG_GetError());
 		}
 		if (fontNew && wid->font != fontNew) {
-			if (wid->font) {
-				AG_UnusedFont(wid->font);
-			}
+			AG_OBJECT_ISA(fontNew, "AG_Font:*");
+
 			wid->font = fontNew;
 
 			AG_PushTextState();
@@ -2368,51 +2390,48 @@ Apply_Font_Size(float *fontSize, float parentFontSize, const char *spec)
 }
 
 static void
-Apply_Font_Weight(Uint *fontFlags, Uint parentFontFlags, const char *spec)
+Apply_Font_Weight(Uint *fontFlags, Uint parentFontFlags, const char *weight)
 {
-	if (AG_Strcasecmp(spec, "bold") == 0) {
-		*fontFlags |= AG_FONT_BOLD;
-	} else if (AG_Strcasecmp(spec, "!parent") == 0) {
-		if (parentFontFlags & AG_FONT_WEIGHTS) {
-			*fontFlags &= ~(AG_FONT_WEIGHTS);
-		} else {
-			*fontFlags |= AG_FONT_BOLD;
+	Uint flags;
+
+	if ((flags = AG_FontGetStyleByName(weight)) == 0) {
+		if (AG_Strcasecmp(weight, "!parent") == 0) {
+			if ((parentFontFlags & AG_FONT_WEIGHTS) == 0)
+				flags = AG_FONT_BOLD;
 		}
-	} else {				/* "normal" or "regular" */
-		*fontFlags &= ~(AG_FONT_WEIGHTS);
 	}
+	*fontFlags &= ~(AG_FONT_WEIGHTS);
+	*fontFlags |= flags;
 }
 	
 static void
-Apply_Font_Style(Uint *fontFlags, Uint parentFontFlags, const char *spec)
+Apply_Font_Style(Uint *fontFlags, Uint parentFontFlags, const char *style)
 {
-	*fontFlags &= ~(AG_FONT_STYLES);
+	Uint flags;
 
-	if (AG_Strcasecmp(spec, "italic") == 0) {
-		*fontFlags |= AG_FONT_ITALIC;
-	} else if (AG_Strcasecmp(spec, "upright-italic") == 0) {
-		*fontFlags |= AG_FONT_UPRIGHT_ITALIC;
-	} else if (AG_Strcasecmp(spec, "oblique") == 0) {
-		*fontFlags |= AG_FONT_OBLIQUE;
-	} else if (AG_Strcasecmp(spec, "!parent") == 0) {
-		if ((parentFontFlags & AG_FONT_STYLES) == 0)
-			*fontFlags |= AG_FONT_ITALIC;
+	if ((flags = AG_FontGetStyleByName(style)) == 0) {
+		if (AG_Strcasecmp(style, "!parent") == 0) {
+			if ((parentFontFlags & AG_FONT_STYLES) == 0)
+				flags = AG_FONT_ITALIC;
+		}
 	}
+	*fontFlags &= ~(AG_FONT_STYLES);
+	*fontFlags |= flags;
 }
 
 static void
-Apply_Font_Stretch(Uint *fontFlags, Uint parentFontFlags, const char *spec)
+Apply_Font_Stretch(Uint *fontFlags, Uint parentFontFlags, const char *wdVariant)
 {
-	*fontFlags &= ~(AG_FONT_WD_VARIANTS);
+	Uint flags;
 
-	if (AG_Strcasecmp(spec, "condensed") == 0) {
-		*fontFlags |= AG_FONT_CONDENSED;
-	} else if (AG_Strcasecmp(spec, "semi-condensed") == 0) {
-		*fontFlags |= AG_FONT_SEMICONDENSED;
-	} else if (AG_Strcasecmp(spec, "!parent") == 0) {
-		if ((parentFontFlags & AG_FONT_WD_VARIANTS) == 0)
-			*fontFlags |= AG_FONT_CONDENSED;
+	if ((flags = AG_FontGetStyleByName(wdVariant)) == 0) {
+		if (AG_Strcasecmp(wdVariant, "!parent") == 0) {
+			if ((parentFontFlags & AG_FONT_WD_VARIANTS) == 0)
+				flags = AG_FONT_CONDENSED;
+		}
 	}
+	*fontFlags &= ~(AG_FONT_WD_VARIANTS);
+	*fontFlags |= flags;
 }
 
 static void
@@ -2583,7 +2602,6 @@ AG_WidgetFreeStyle(void *obj)
 	
 	AG_OBJECT_ISA(wid, "AG_Widget:*");
 	if (wid->font) {
-		AG_UnusedFont(wid->font);
 		wid->font = NULL;
 	}
 	OBJECT_FOREACH_CHILD(chld, wid, ag_widget)
@@ -2623,20 +2641,33 @@ AG_WidgetCopyStyle(void *objDst, void *objSrc)
 }
 
 /*
- * Inherit the font-related style attributes of the specified font.
+ * Generate per-widget style attributes from the style attributes of the
+ * given font (font-family, font-weight and font-stretch).
  */
 void
 AG_SetFont(void *obj, const AG_Font *font)
 {
+	char buf[64];
 	AG_Widget *wid = obj;
+	Uint flags;
 
 	AG_OBJECT_ISA(wid, "AG_Widget:*");
 	AG_OBJECT_ISA(font, "Font:*");
 
-	AG_SetString(wid, "font-family", OBJECT(font)->name);
-	AG_SetStringF(wid, "font-size", "%.2fpts", font->spec.size);
-	AG_SetString(wid, "font-weight", (font->flags & AG_FONT_BOLD) ? "bold" : "normal");
-	AG_SetString(wid, "font-style", (font->flags & AG_FONT_ITALIC) ? "italic" : "normal");
+	AG_SetString(wid, "font-family", font->name);
+
+	if ((flags = (font->flags & AG_FONT_WEIGHTS)) != 0) {
+		AG_FontGetStyleName(buf, sizeof(buf), flags);
+		AG_SetString(wid, "font-weight", buf);
+	}
+	if ((flags = (font->flags & AG_FONT_STYLES)) != 0) {
+		AG_FontGetStyleName(buf, sizeof(buf), flags);
+		AG_SetString(wid, "font-style", buf);
+	}
+	if ((flags = (font->flags & AG_FONT_WD_VARIANTS)) != 0) {
+		AG_FontGetStyleName(buf, sizeof(buf), flags);
+		AG_SetString(wid, "font-stretch", buf);
+	}
 
 	AG_WidgetCompileStyle(wid);
 	AG_Redraw(wid);
@@ -2708,5 +2739,13 @@ AG_WidgetClass agWidgetClass = {
 	},
 	NULL,                   /* draw */
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	NULL,			/* mouse_button_down */
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	NULL,			/* key_down */
+	NULL,			/* key_up */
+	NULL,			/* touch */
+	NULL,			/* ctrl */
+	NULL			/* joy */
 };

@@ -227,7 +227,7 @@ AG_WindowNew(Uint flags)
 		}
 		break;
 	case AG_WM_MULTIPLE:
-		if ((drv = AG_DriverOpen(agDriverOps)) == NULL) {
+		if ((drv = AG_DriverOpen(agDriverOps, NULL)) == NULL) {
 			Verbose("%s: Failed (%s)\n", agDriverOps->name, AG_GetError());
 			return (NULL);
 		}
@@ -338,7 +338,7 @@ Attach(AG_Event *_Nonnull event)
 
 		AG_IconSetSurface(icon, agIconWindow.s);
 		AG_IconSetBackgroundFill(icon, 1, &AGDRIVER_SW(drv)->bgColor);
-		AG_SetStyle(icon, "font-size", "80%");
+		AG_SetFontSize(icon, "80%");
 		AG_WidgetCompileStyle(icon);
 	}
 #endif /* AG_WIDGETS */
@@ -1220,7 +1220,7 @@ FindFocusableWidgets(AG_WidgetVec *W, AG_Widget *_Nonnull wid)
 
 /*
  * Move the widget focus inside a window.
- * The window and agDrivers VFS must be locked.
+ * The agDrivers VFS must be locked.
  */
 void
 AG_WindowCycleFocus(AG_Window *win, int reverse)
@@ -1235,14 +1235,12 @@ AG_WindowCycleFocus(AG_Window *win, int reverse)
 	AG_VEC_INIT(&W);
 	AG_VEC_INIT(&WU);
 
-	AG_LockVFS(&agDrivers);
 	OBJECT_FOREACH_CHILD(chld, win, ag_widget) {
 		if (AG_OfClass(chld, "AG_Widget:AG_Window:*")) {
 			continue;
 		}
 		FindFocusableWidgets(&W, chld);
 	}
-	AG_UnlockVFS(&agDrivers);
 
 	for (i = 0; i < W.length; i++) {
 		for (j = 0; j < WU.length; j++) {
@@ -3072,7 +3070,7 @@ Init(void *_Nonnull obj)
 	
 	/* Set the inheritable style defaults. */
 	AG_SetString(win,  "font-family", OBJECT(agDefaultFont)->name);
-	AG_SetStringF(win, "font-size",   "%.02fpts", agDefaultFont->spec.size);
+	AG_SetStringF(win, "font-size",   "%.02fpt", agDefaultFont->spec.size);
 	AG_SetString(win,  "font-weight", "normal");
 	AG_SetString(win,  "font-style",  "normal");
 	
@@ -3157,11 +3155,11 @@ Edit(void *_Nonnull obj)
 	AG_NotebookTab *nt;
 
 	box = AG_BoxNewVert(NULL, AG_BOX_EXPAND);
-	AG_SetStyle(box, "padding", "2 3 2 3");
+	AG_SetPadding(box, "2 3 2 3");
 
 	lbl = AG_LabelNew(box, 0, _("Window Structure " AGSI_YEL "%s" AGSI_RST),
 	    OBJECT(tgt)->name);
-	AG_SetStyle(lbl, "font-size", "130%");
+	AG_SetFontSize(lbl, "130%");
 
 	AG_LabelNewPolled(box, AG_LABEL_SLOW | AG_LABEL_HFILL,
 	    _("Visible=" AGSI_BOLD "%i" AGSI_RST ", "
@@ -3185,7 +3183,7 @@ Edit(void *_Nonnull obj)
 	}
 
 	nt = AG_NotebookAdd(nb, _("Properties"), AG_BOX_VERT);
-	AG_SetStyle(nt, "padding", "3 3 3 3");
+	AG_SetPadding(nt, "3");
 	{
 		AG_SpacerNewHoriz(nt);
 
@@ -3264,5 +3262,13 @@ AG_WidgetClass agWindowClass = {
 	},
 	Draw,
 	SizeRequest,
-	SizeAllocate
+	SizeAllocate,
+	NULL,			/* mouse_button_down */
+	NULL,			/* mouse_button_up */
+	NULL,			/* mouse_motion */
+	NULL,			/* key_down */
+	NULL,			/* key_up */
+	NULL,			/* touch */
+	NULL,			/* ctrl */
+	NULL			/* joy */
 };

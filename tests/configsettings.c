@@ -18,8 +18,12 @@ LoadConfig(AG_Event *event)
 	AG_Object *cfg = AGOBJECT(agConfig);
 	AG_Variable *V;
 
-	if (AG_ObjectCopyFilename(cfg, path, sizeof(path)) == 0)
-		TestMsg(ti, "Loading from %s", path);
+	if (AG_ObjectCopyFilename(cfg, path, sizeof(path)) != 0) {
+		TestMsg(ti, "%s", AG_GetError());
+		return;
+	}
+
+	TestMsg(ti, "Loading from %s", path);
 
 	if (AG_ConfigLoad() == 0) {
 		const char *s = "Configuration loaded successfully";
@@ -29,6 +33,7 @@ LoadConfig(AG_Event *event)
 		AG_TextMsgFromError();
 		TestMsg(ti, "AG_ConfigLoad: %s", AG_GetError());
 	}
+	AG_SetDefaultFont(NULL);
 
 	if (AG_Defined(cfg,"some-string")) {
 		AG_GetString(cfg, "some-string", someString, sizeof(someString));
@@ -103,16 +108,16 @@ TestGUI(void *obj, AG_Window *win)
 
 	box = AG_BoxNewVert(win, AG_BOX_EXPAND);
 	AG_BoxSetLabelS(box, "AG_ConfigFind() search paths:");
-	AG_SetStyle(box, "font-size", "90%");
-	AG_SetStyle(box, "font-weight", "bold");
+	AG_SetFontSize(box, "90%");
+	AG_SetFontWeight(box, "bold");
 	{
 		AG_TAILQ_FOREACH(cp, &agConfig->paths[AG_CONFIG_PATH_DATA], paths) {
 			lbl = AG_LabelNew(box, 0, "Data: %s", cp->s);
-			AG_SetStyle(lbl, "font-family", "courier-prime");
+			AG_SetFontFamily(lbl, "monoalgue");
 		}
 		AG_TAILQ_FOREACH(cp, &agConfig->paths[AG_CONFIG_PATH_FONTS], paths) {
 			lbl = AG_LabelNew(box, 0, "Fonts: %s", cp->s);
-			AG_SetStyle(lbl, "font-family", "courier-prime");
+			AG_SetFontFamily(lbl, "monoalgue");
 		}
 	}
 
@@ -126,6 +131,7 @@ TestGUI(void *obj, AG_Window *win)
 }
 
 const AG_TestCase configsettingsTest = {
+	AGSI_IDEOGRAM AGSI_GEAR AGSI_RST,
 	"configsettings",
 	N_("Test user-specified AG_Config(3) parameters"),
 	"1.4.2",

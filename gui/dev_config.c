@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2020 Julien Nadeau Carriere <vedge@csoft.net>
+ * Copyright (c) 2002-2023 Julien Nadeau Carriere <vedge@csoft.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  */
 
 /*
- * Generic configuration settings dialog.
+ * A "GUI Preferences" dialog for application-global Agar settings.
  */
 
 #include <agar/core/core.h>
@@ -44,9 +44,48 @@
 #include <agar/gui/numerical.h>
 #include <agar/gui/hsvpal.h>
 #include <agar/gui/separator.h>
+#include <agar/gui/font_selector.h>
 #include <agar/gui/file_dlg.h>
 #include <agar/gui/dir_dlg.h>
 #include <agar/gui/pane.h>
+#include <agar/gui/radio.h>
+#include <agar/gui/sdl2.h>
+
+/*
+ * CPU-specific architecture extension names.
+ */
+AG_FlagDescrRO agArchExtnNames[] = {
+	{ AG_EXT_CPUID,            "CPUID" },                 /* CPUID Insn */
+	{ AG_EXT_MMX,              "MMX" },
+	{ AG_EXT_MMX_EXT,        _("MMX + AMD Extensions") },
+	{ AG_EXT_3DNOW,            "3dNow!" },
+	{ AG_EXT_3DNOW_EXT,      _("3dNow! + Extensions") },
+	{ AG_EXT_3DNOW_PREFETCH,   "3dNow! " AGSI_CODE" PREFETCH/PREFETCHW" AGSI_RST },
+	{ AG_EXT_ALTIVEC,          "AltiVec" },
+	{ AG_EXT_SSE,              "SSE" },
+	{ AG_EXT_SSE2,             "SSE2" },
+	{ AG_EXT_SSE3,             "SSE3"  },
+	{ AG_EXT_SSSE3,            "SSSE3" },
+	{ AG_EXT_SSE4A,          _("SSE4a Extensions") },
+	{ AG_EXT_SSE41,            "SSE41" },
+	{ AG_EXT_SSE42,            "SSE42" },
+	{ AG_EXT_SSE5A,          _("SSE5a Extensions") },
+	{ AG_EXT_SSE_MISALIGNED, _("Misaligned SSE Mode") },
+	{ AG_EXT_LONG_MODE,      _("Long Mode") },
+	{ AG_EXT_RDTSCP,           "RDTSCP" },                /* RDTSC Insn */
+	{ AG_EXT_FXSR,             "FXSR" },
+	{ AG_EXT_PAGE_NX,          "PAGE_NX" },                      /* W^X */
+	{ AG_EXT_ONCHIP_FPU,     _("On-chip FPU") },
+	{ AG_EXT_TSC,              "TSC" },           /* Time Stamp Counter */
+	{ AG_EXT_CMOV,             "CMOV" },            /* Conditional Move */
+	{ AG_EXT_CLFLUSH,          "CLFLUSH" },         /* Cache-Line Flush */
+	{ AG_EXT_HTT,              "HTT" },         /* Hyper-Threading Tech */
+	{ AG_EXT_MON,              "MON" },          /* MONITOR/MWAIT Insns */
+	{ AG_EXT_VMX,              "VMX" },        /* Virtual Machine Extns */
+	{ 0,                     NULL }
+};
+
+static AG_Font *agConfigSelectedFont = NULL;
 
 static void
 SaveConfig(AG_Event *_Nonnull event)
@@ -61,149 +100,308 @@ SaveConfig(AG_Event *_Nonnull event)
 	}
 }
 
-#if 0
 static void
-SelectPathOK(AG_Event *_Nonnull event)
+SetDefaultFont(AG_Event *event)
 {
-	char *key = AG_STRING(1);
-	AG_Textbox *tbox = AG_TEXTBOX_PTR(2);
-	AG_Window *win = AG_WINDOW_PTR(3);
-	char *path = AG_STRING(4);
-	
-	AG_SetString(agConfig, key, path);
-	AG_TextboxSetString(tbox, path);
-	AG_ObjectDetach(win);
-}
-
-static void
-SelectPath(AG_Event *_Nonnull event)
-{
-	char path[AG_PATHNAME_MAX];
-	AG_Window *win;
-	AG_DirDlg *dd;
-	char *key = AG_STRING(1);
-	AG_Textbox *tbox = AG_TEXTBOX_PTR(2);
-
-	if ((win = AG_WindowNew(0)) == NULL) {
+	if (agConfigSelectedFont == NULL) {
 		return;
 	}
-	dd = AG_DirDlgNew(win, AG_DIRDLG_EXPAND | AG_DIRDLG_CLOSEWIN);
-	AG_GetString(agConfig, key, path, sizeof(path));
-	if (AG_DirDlgSetDirectoryS(dd, path) == -1) {
-		AG_MkPath(path);
-		(void)AG_DirDlgSetDirectoryS(dd, path);
-	}
-	AG_WindowSetGeometryAlignedPct(win, AG_WINDOW_MC, 30, 30);
-	AG_WindowSetCaption(win, _("Select %s directory"), key);
-	AG_DirDlgOkAction(dd, SelectPathOK, "%s,%p,%p", key, tbox, win);
-	AG_WindowShow(win);
-}
-#endif
 
+	AG_SetDefaultFont(agConfigSelectedFont);
+
+	if (AG_ConfigSave() == 0) {
+		AG_TextTmsg(AG_MSG_INFO, 1000, "Default font has changed.");
+	} else {
+		AG_TextMsgFromError();
+	}
+}
+
+#ifdef HAVE_SDL2
+static void
+PollJoysticks(AG_Event *_Nonnull event)
+{
+	AG_Tlist *tl = AG_TLIST_SELF();
+	const int nJoysticks = SDL_NumJoysticks();
+	int i;
+
+	AG_TlistBegin(tl);
+	for (i = 0; i < nJoysticks; i++) {
+		AG_TlistItem *it;
+
+		if (SDL_IsGameController(i)) {
+			const char *name = SDL_GameControllerNameForIndex(i);
+
+			it = AG_TlistAdd(tl, NULL,
+			    AGSI_IDEOGRAM AGSI_GAME_CONTROLLER AGSI_RST
+			    " %d) %s", i, name);
+		} else {
+			const char *name = SDL_JoystickNameForIndex(i);
+
+			it = AG_TlistAdd(tl, NULL,
+			    AGSI_IDEOGRAM AGSI_JOYSTICK AGSI_RST
+			    " %d) %s", i, name);
+		}
+		it->p1 = NULL;
+	}
+	if (nJoysticks == 0) {
+		AG_TlistAddS(tl, NULL, _("(no controllers detected)"));
+	}
+	AG_TlistEnd(tl);
+}
+#endif /* HAVE_SDL2 */
+
+/*
+ * Configuration dialog for general Agar settings.
+ */
 static AG_Window *_Nullable
 AG_DEV_ConfigWindow(AG_Config *_Nullable cfg)
 {
 	AG_Window *win;
-	AG_Box *hb;
+	AG_Box *box;
 	AG_Notebook *nb;
 	AG_NotebookTab *tab;
-	const Uint numFl = AG_NUMERICAL_HFILL;
+	const AG_Driver *drv;
+	AG_Checkbox *cb;
 
 	if ((win = AG_WindowNewNamedS(0, "DEV_Config")) == NULL) {
 		return (NULL);
 	}
+	drv = AGWIDGET(win)->drv;
+
 	AG_WindowSetCaptionS(win, _("GUI Preferences"));
 	AG_WindowSetCloseAction(win, AG_WINDOW_DETACH);
-	AG_SetStyle(win, "padding", "5");
+	AG_SetPadding(win, "5");
 
-	nb = AG_NotebookNew(win, AG_NOTEBOOK_HFILL | AG_NOTEBOOK_VFILL);
+	nb = AG_NotebookNew(win, AG_NOTEBOOK_EXPAND);
 
-	tab = AG_NotebookAdd(nb, _("Agar GUI"), AG_BOX_VERT);
+	tab = AG_NotebookAdd(nb,
+	    _(AGSI_IDEOGRAM AGSI_AGAR_AG AGSI_RST " Settings"),
+	    AG_BOX_VERT);
 	{
-		const AG_Driver *drv = AGWIDGET(win)->drv;
+		AG_Box *boxArch;
+		AG_Label *lbl;
 
-		AG_LabelNew(tab, 0,
-		    _("Driver: " AGSI_COURIER "%s(3)" AGSI_RST "\n"
-		      "Depth: %d bpp\n"
-		      "SDL: %s, "
-		      "OpenGL: %s"),
+		AG_SetPadding(tab, "8");
+
+		boxArch = AG_BoxNewHoriz(tab, AG_BOX_HFILL);
+		{
+			char extns[160], *c;
+			AG_FlagDescrRO *fd;
+			int i;
+
+			extns[0] = '\0';
+			for (fd = &agArchExtnNames[0]; fd->bitmask != 0; fd++) {
+				if (agCPU.ext & fd->bitmask) {
+					Strlcat(extns, fd->descr, sizeof(extns));
+					if (i++ == 9) {
+						i = 0;
+						Strlcat(extns, ",\n", sizeof(extns));
+					} else {
+						Strlcat(extns, ", ", sizeof(extns));
+					}
+				}
+			}
+			if ((c = strrchr(extns, ',')) != NULL)
+				*c = '\0';
+
+			if (agCPU.icon != 0) {
+				Uint32 uch[2];
+				char iconText[16];
+
+				uch[0] = agCPU.icon;
+				uch[1] = '\0';
+				if (AG_ExportUnicode("UTF-8", iconText, uch,
+				    sizeof(iconText)) == -1) {
+					iconText[0] = '\0';
+				}
+				lbl = AG_LabelNew(boxArch, AG_LABEL_HFILL,
+				    _("Platform: " AGSI_LEAGUE_SPARTAN" %s " AGSI_RST
+				      AGSI_IDEOGRAM "%s" AGSI_RST " "
+				      AGSI_ITALIC "\"%s\"" AGSI_RST
+				      " (%s)."),
+			   	    (agCPU.arch[0]!='\0') ? agCPU.arch : _("Unknown"),
+				    iconText,
+				    agCPU.vendorID, extns);
+			} else {
+				lbl = AG_LabelNew(boxArch, 0,
+				    _("Platform: " AGSI_LEAGUE_SPARTAN "%s " AGSI_RST
+				      AGSI_ITALIC "\"%s\"" AGSI_RST
+				      " (%s)."),
+			   	    (agCPU.arch[0]!='\0') ? agCPU.arch : _("Unknown"),
+				    agCPU.vendorID, extns);
+			}
+			AG_SetFontSize(lbl, "90%");
+		}
+
+		lbl = AG_LabelNew(tab, AG_LABEL_HFILL,
+		    _("Driver class: "
+		      AGSI_CYAN AGSI_LEAGUE_SPARTAN "%s" AGSI_RST
+		      " (%d bpp, SDL=%s, OpenGL=%s)."),
 		    OBJECT_CLASS(drv)->name,
 		    (drv->videoFmt) ? drv->videoFmt->BitsPerPixel : 32,
 		    (AGDRIVER_CLASS(drv)->flags & AG_DRIVER_SDL) ? _("Yes") : _("No"),
 		    (AGDRIVER_CLASS(drv)->flags & AG_DRIVER_OPENGL) ? _("Yes") : _("No"));
+		AG_SetFontSize(lbl, "90%");
+		AG_SetPadding(lbl, "0 0 0 10");
 
 		AG_SeparatorNewHoriz(tab);
 
+		AG_CheckboxNewInt(tab, 0, _("Enable Clipboard Integration"),
+		    &agClipboardIntegration);
+
 		if (AGDRIVER_CLASS(drv)->flags & AG_DRIVER_OPENGL) {
-			AG_WidgetDisable(
-			    AG_CheckboxNewInt(tab, 0, _("Stereo vision"), &agStereo)
-			);
-		}
-		
-		AG_CheckboxNewInt(tab, 0,
-		    _("Enable " AGSI_COURIER "GL_DEBUG_OUTPUT" AGSI_RST),
-		    &agGLdebugOutput);
+			AG_CheckboxNewInt(tab, 0,
+			    _("Enable " AGSI_CODE "GL_DEBUG_OUTPUT" AGSI_RST),
+			    &agGLdebugOutput);
 
-		AG_CheckboxNewInt(tab, 0,
-		    _("NPOT (non power of two) textures"), &agGLuseNPOT);
+			cb = AG_CheckboxNewInt(tab, 0,
+			    _("Enable Stereo Vision"), &agStereo);
+			AG_WidgetDisable(cb);
 
-		if (AG_OfClass(drv, "AG_Driver:AG_DriverMw:AG_DriverGLX")) {
-			AG_WidgetDisable(
-			    AG_CheckboxNewInt(tab, 0, _("Synchronous X events"), &agXsync)
-			);
+			cb = AG_CheckboxNewInt(tab, 0,
+			    _("Use Non-Power-Of-Two Textures"), &agGLuseNPOT);
+#ifndef ENABLE_GL_NO_NPOT
+			AG_WidgetDisable(cb);
+#endif
 		}
 
-		AG_CheckboxNewInt(tab, 0, _("Clipboard integration"),
-		                  &agClipboardIntegration);
-		AG_NumericalNewIntR(tab, numFl, "px", _("Tab width: "),
-		                    &agTextTabWidth, 0, 1000);
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Cursor Blink Rate: "),
-		                    &agTextBlinkRate, 0, 500);
-		AG_NumericalNewIntR(tab, numFl, "%", _("Screenshot Quality: "),
-		                    &agScreenshotQuality, 1, 100);
 #ifdef AG_DEBUG
-		AG_NumericalNewIntR(tab, numFl, NULL, _("Debug level: "),
-		    &agDebugLvl, 0, 255);
+		{
+			const char *debugLvlNames[] = {
+				N_("0) No Debugging"),
+				N_("1) Debug Objects"),
+				N_("2) Debug Variables"),
+				NULL
+			};
+
+			if (AG_OfClass(drv, "AG_Driver:AG_DriverMw:AG_DriverGLX")) {
+				cb = AG_CheckboxNewInt(tab, 0,
+				    _("Use Synchronous X Events"), &agXsync);
+				AG_WidgetDisable(cb);
+			}
+			AG_SeparatorNewHoriz(tab);
+			AG_LabelNewS(tab, 0, _("Debug Level:"));
+			AG_RadioNewInt(tab, 0, _(debugLvlNames), &agDebugLvl);
+		}
 #endif
 	}
 
-	tab = AG_NotebookAdd(nb, _("Keyboard"), AG_BOX_VERT);
+	tab = AG_NotebookAdd(nb,
+	    _(AGSI_IDEOGRAM AGSI_TYPOGRAPHY AGSI_RST " Font"),
+	    AG_BOX_VERT);
 	{
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Key repeat delay: "),
-		    &agKbdDelay, 1, 1000);
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Key repeat interval: "),
-		    &agKbdRepeat, 1, 500);
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Autocomplete delay: "),
-		    &agAutocompleteDelay, 1, 5000);
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Autocomplete rate: "),
-		    &agAutocompleteRate, 1, 1000);
+		AG_FontSelector *fs;
 
-		AG_SeparatorNewHoriz(tab);
+		fs = AG_FontSelectorNew(tab, AG_FONTSELECTOR_EXPAND);
+		agConfigSelectedFont = agDefaultFont;
+		AG_BindPointer(fs, "font", (void *)&agConfigSelectedFont);
+		(void)fs;
 
-		AG_CheckboxNewInt(tab, 0, _("Unicode character composition"),
+		box = AG_BoxNewHoriz(tab, AG_BOX_HFILL | AG_BOX_HOMOGENOUS);
+		AG_ButtonNewFn(box, 0, _("Set As Default Font"), SetDefaultFont,NULL);
+	}
+
+	tab = AG_NotebookAdd(nb,
+	    _(AGSI_IDEOGRAM AGSI_KEYBOARD_KEY AGSI_RST " Keyboard"),
+	    AG_BOX_VERT);
+	{
+		AG_SetPadding(tab, "8");
+
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Cursor Blink Rate: "), &agTextBlinkRate, 0, 500);
+
+		AG_SpacerNewHoriz(tab);
+
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Key Repeat Delay: "), &agKbdDelay, 1, 1000);
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Key Repeat Interval: "), &agKbdRepeat, 1, 500);
+
+		AG_SpacerNewHoriz(tab);
+
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Autocomplete Delay: "), &agAutocompleteDelay, 1, 5000);
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Autocomplete Rate: "), &agAutocompleteRate, 1, 1000);
+
+		AG_SpacerNewHoriz(tab);
+
+		AG_CheckboxNewInt(tab, 0, _("Unicode Character Composition"),
 		    &agTextComposition);
 	}
 
-	tab = AG_NotebookAdd(nb, _("Mouse"), AG_BOX_VERT);
+	tab = AG_NotebookAdd(nb,
+	    _(AGSI_IDEOGRAM AGSI_TWO_BUTTON_MOUSE AGSI_RST " Mouse"),
+	    AG_BOX_VERT);
 	{
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Double click threshold: "),
+		AG_SetPadding(tab, "8");
+
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Double Click Threshold: "),
 		    &agMouseDblclickDelay, 1, 10000);
 
-		AG_SeparatorNewHoriz(tab);
+		AG_SpacerNewHoriz(tab);
 
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Mouse spin delay: "),
-		    &agMouseSpinDelay, 1, 10000);
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Mouse spin interval: "),
-		    &agMouseSpinIval, 1, 10000);
-		AG_NumericalNewIntR(tab, numFl, "ms", _("Mouse scroll interval: "),
-		    &agMouseScrollIval, 1, 10000);
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Spin Delay: "), &agMouseSpinDelay, 1, 10000);
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Spin Interval: "), &agMouseSpinIval, 1, 10000);
+		AG_NumericalNewIntR(tab, AG_NUMERICAL_HFILL, "ms",
+		    _("Scroll Interval: "), &agMouseScrollIval, 1, 10000);
 	}
 
-	hb = AG_BoxNewHoriz(win, AG_BOX_HOMOGENOUS | AG_BOX_HFILL);
+	tab = AG_NotebookAdd(nb,
+	    _(AGSI_IDEOGRAM AGSI_GAME_CONTROLLER AGSI_RST " Controllers"),
+	    AG_BOX_VERT);
 	{
-		AG_ButtonNewFn(hb, 0, _("Close"), AGWINDETACH(win));
-		AG_ButtonNewFn(hb, 0, _("Save"), SaveConfig, NULL);
+#ifdef HAVE_SDL2
+		AG_Driver *drv = WIDGET(win)->drv;
+#endif
+		AG_Tlist *tl;
+
+		box = AG_BoxNewVert(tab, AG_BOX_EXPAND);
+#ifdef HAVE_SDL2
+		if (AG_OfClass(drv, "AG_Driver:AG_DriverMw:AG_DriverSDL2MW:*") ||
+		    AG_OfClass(drv, "AG_Driver:AG_DriverSw:AG_DriverSDL2GL:*") ||
+		    AG_OfClass(drv, "AG_Driver:AG_DriverSw:AG_DriverSDL2FB:*"))
+		{
+			AG_LabelNewS(box, 0,
+			    _("Joystick support is available."));
+
+			tl = AG_TlistNewPolled(box,
+			    AG_TLIST_POLL | AG_TLIST_EXPAND,
+			    PollJoysticks, NULL);
+			AG_TlistSizeHint(tl, "<XXXXXXXXXXXXXXXXXXXXXXXXXXXXX>", 8);
+		} else
+#endif
+		{
+			AG_LabelNew(box, 0,
+			    _(AGSI_IDEOGRAM AGSI_TRI_CONSTRUCTION_SIGN AGSI_RST
+			      " Joystick support is not available in "
+			      AGSI_CODE AGSI_CYAN "%s" AGSI_WHT "(3)" AGSI_RST
+			      " at this time.\n"
+			      "To use joysticks or game controllers, restart "
+			      "with one of:\n\n"
+			      AGSI_CODE
+			      "  -d 'sdl2mw(ctrl)'\n"
+			      "  -d 'sdl2gl(ctrl)'\n"
+			      "  -d 'sdl2fb(ctrl)'\n"),
+			      AGOBJECT_CLASS(WIDGET(win)->drv)->name);
+
+			AG_PushDisabledState(box);
+			tl = AG_TlistNew(box, AG_TLIST_EXPAND);
+			AG_TlistAddS(tl, NULL, "(No joystick support)");
+			AG_PopDisabledState(box);
+		}
 	}
+
+	box = AG_BoxNewHoriz(win, AG_BOX_HOMOGENOUS | AG_BOX_HFILL);
+	{
+		AG_ButtonNewFn(box, 0, _("Close"), AGWINDETACH(win));
+		AG_ButtonNewFn(box, 0, _("Save"), SaveConfig, NULL);
+	}
+
+	AG_WindowSetPosition(win, AG_WINDOW_MC, 0);
 
 	return (win);
 }
